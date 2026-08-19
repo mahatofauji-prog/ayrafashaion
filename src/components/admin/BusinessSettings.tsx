@@ -110,7 +110,6 @@ export const BusinessSettings: React.FC<BusinessSettingsProps> = ({
       } catch (authPassErr) {
         console.warn('Firebase Auth updatePassword warning:', authPassErr);
       }
-      localStorage.setItem('ayra_admin_password', newPassword);
       setPasswordSuccess('Password updated successfully!');
       setCurrentPassword('');
       setNewPassword('');
@@ -425,7 +424,7 @@ export const BusinessSettings: React.FC<BusinessSettingsProps> = ({
         </h3>
 
         <p className="text-xs text-zinc-400">
-          Logged in as: <span className="text-white font-mono font-semibold">{auth.currentUser?.email || 'ayra.fashion.assam@gmail.com'}</span>. You can change your admin portal password below.
+          Logged in as: <span className="text-white font-mono font-semibold">{auth.currentUser?.email || 'Store Admin'}</span>. You can change your admin portal password below.
         </p>
 
         {passwordError && (
@@ -455,7 +454,7 @@ export const BusinessSettings: React.FC<BusinessSettingsProps> = ({
                 type="password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="Ayra@2026"
+                placeholder="Enter current password"
                 className="w-full pl-10 pr-4 py-2.5 bg-[#141414] border border-zinc-800 rounded-xl text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#D4AF37]"
               />
             </div>

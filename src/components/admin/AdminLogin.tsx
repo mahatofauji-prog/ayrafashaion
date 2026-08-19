@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, Mail, ArrowRight, ShieldCheck, UserCheck, AlertCircle } from 'lucide-react';
+import { Lock, Mail, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -21,8 +21,8 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
   onBackToCatalogue,
   onShowToast,
 }) => {
-  const [email, setEmail] = useState('ayra.fashion.assam@gmail.com');
-  const [password, setPassword] = useState('Ayra@2026');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [isRegisterMode, setIsRegisterMode] = useState(false);
@@ -40,13 +40,6 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
     setIsLoading(true);
     setErrorMsg('');
 
-    // Stored custom password fallback or default
-    const savedPassword = localStorage.getItem('ayra_admin_password') || 'Ayra@2026';
-    const isOwnerEmailMatch =
-      enteredEmail === 'ayra.fashion.assam@gmail.com' ||
-      enteredEmail === 'owner@ayrafashion.com' ||
-      enteredEmail === businessProfile.email?.trim().toLowerCase();
-
     const completeLogin = () => {
       localStorage.setItem('ayra_admin_session', 'true');
       onLoginSuccess();
@@ -55,71 +48,27 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
     try {
       if (isRegisterMode) {
         await createUserWithEmailAndPassword(auth, enteredEmail, enteredPassword);
-        onShowToast('Account registered successfully!', 'success');
+        onShowToast('Admin account registered successfully!', 'success');
         completeLogin();
       } else {
-        try {
-          await signInWithEmailAndPassword(auth, enteredEmail, enteredPassword);
-          onShowToast('Welcome back, store owner!', 'success');
-          completeLogin();
-        } catch (signInErr: any) {
-          console.warn('Firebase Auth signin notice:', signInErr);
-          if (
-            signInErr.code === 'auth/user-not-found' ||
-            signInErr.code === 'auth/invalid-credential'
-          ) {
-            try {
-              // Auto-create account for first-time login
-              await createUserWithEmailAndPassword(auth, enteredEmail, enteredPassword);
-              onShowToast('Welcome back, store owner!', 'success');
-              completeLogin();
-              return;
-            } catch (createErr: any) {
-              if (
-                createErr.code === 'auth/operation-not-allowed' &&
-                isOwnerEmailMatch &&
-                enteredPassword === savedPassword
-              ) {
-                onShowToast('Logged in as AYRA FASHION Store Owner!', 'success');
-                completeLogin();
-                return;
-              }
-              throw createErr;
-            }
-          } else if (
-            signInErr.code === 'auth/operation-not-allowed' &&
-            isOwnerEmailMatch &&
-            enteredPassword === savedPassword
-          ) {
-            onShowToast('Logged in as AYRA FASHION Store Owner!', 'success');
-            completeLogin();
-            return;
-          } else {
-            throw signInErr;
-          }
-        }
+        await signInWithEmailAndPassword(auth, enteredEmail, enteredPassword);
+        onShowToast('Welcome back, store owner!', 'success');
+        completeLogin();
       }
     } catch (err: any) {
       console.error('Auth error:', err);
-      // Fallback check if auth/operation-not-allowed or provider error happens on Vercel/Firebase
-      if (isOwnerEmailMatch && enteredPassword === savedPassword) {
-        onShowToast('Logged in as AYRA FASHION Store Owner!', 'success');
-        completeLogin();
-        return;
-      }
-
-      if (err.code === 'auth/operation-not-allowed') {
-        if (enteredPassword !== savedPassword) {
-          setErrorMsg('Incorrect password. Please enter the correct admin password.');
-        } else {
-          setErrorMsg('Firebase Email/Password login is not enabled in Firebase Console. Using local store owner login.');
-        }
-      } else if (err.code === 'auth/wrong-password') {
-        setErrorMsg('Incorrect password. Please verify your password.');
+      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        setErrorMsg('Invalid email or password. Please verify your credentials.');
+      } else if (err.code === 'auth/user-not-found') {
+        setErrorMsg('No account found with this email.');
       } else if (err.code === 'auth/email-already-in-use') {
         setErrorMsg('An account with this email already exists. Please login instead.');
       } else if (err.code === 'auth/weak-password') {
-        setErrorMsg('Password should be at least 6 characters.');
+        setErrorMsg('Password should be at least 6 characters long.');
+      } else if (err.code === 'auth/invalid-email') {
+        setErrorMsg('Please enter a valid email address.');
+      } else if (err.code === 'auth/operation-not-allowed') {
+        setErrorMsg('Email/Password login is not enabled in Firebase Console.');
       } else {
         setErrorMsg(err.message || 'Authentication failed. Please try again.');
       }
@@ -146,38 +95,6 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
     }
   };
 
-  // Demo Fast Login for immediate testing
-  const handleQuickDemoLogin = async () => {
-    setIsLoading(true);
-    setErrorMsg('');
-    const demoEmail = 'ayra.fashion.assam@gmail.com';
-    const demoPassword = 'Ayra@2026';
-
-    try {
-      try {
-        await signInWithEmailAndPassword(auth, demoEmail, demoPassword);
-      } catch (signInErr: any) {
-        if (signInErr.code === 'auth/user-not-found' || signInErr.code === 'auth/invalid-credential') {
-          // Auto-create demo account
-          await createUserWithEmailAndPassword(auth, demoEmail, demoPassword);
-        } else {
-          throw signInErr;
-        }
-      }
-      localStorage.setItem('ayra_admin_session', 'true');
-      onShowToast('Logged in as AYRA FASHION Store Owner!', 'success');
-      onLoginSuccess();
-    } catch (err: any) {
-      console.error('Quick login error:', err);
-      // Fallback direct success if Firebase auth mock applies
-      localStorage.setItem('ayra_admin_session', 'true');
-      onShowToast('Demo session authorized!', 'success');
-      onLoginSuccess();
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-[85vh] flex items-center justify-center p-4 bg-[#050505] text-[#F5F5F5]">
       <div className="max-w-md w-full bg-[#0D0D0D] rounded-3xl border border-[#D4AF37]/30 shadow-2xl p-8">
@@ -189,7 +106,6 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
               alt={businessProfile.businessName}
               className="w-full h-full object-cover rounded-full"
               onError={(e) => {
-                // Fallback icon if image fails
                 (e.target as HTMLElement).style.display = 'none';
               }}
             />
@@ -209,7 +125,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
           <div>
             <label className="block text-xs font-bold text-[#D4AF37] uppercase tracking-wider mb-1.5">
               Email Address
@@ -220,9 +136,10 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
                 id="admin-email-input"
                 type="email"
                 required
+                autoComplete="off"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="ayra.fashion.assam@gmail.com"
+                placeholder="Enter your admin email"
                 className="w-full pl-10 pr-4 py-3 bg-[#141414] border border-zinc-800 rounded-xl text-xs sm:text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#D4AF37] transition-all"
               />
             </div>
@@ -238,9 +155,10 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
                 id="admin-password-input"
                 type="password"
                 required
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="Enter your password"
                 className="w-full pl-10 pr-4 py-3 bg-[#141414] border border-zinc-800 rounded-xl text-xs sm:text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#D4AF37] transition-all"
               />
             </div>
@@ -268,23 +186,11 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
             <div className="w-full border-t border-zinc-800"></div>
           </div>
           <span className="relative bg-[#0D0D0D] px-3 text-[10px] text-zinc-500 uppercase tracking-widest font-semibold">
-            Or quick login
+            Or Sign In
           </span>
         </div>
 
-        {/* 1-Click Fast Demo Login for instant convenience */}
         <div className="space-y-3">
-          <button
-            id="quick-demo-login-btn"
-            type="button"
-            onClick={handleQuickDemoLogin}
-            disabled={isLoading}
-            className="w-full py-3 px-4 rounded-xl bg-[#18181B] hover:bg-[#222] text-[#F1D77A] border border-[#D4AF37]/30 text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center space-x-2"
-          >
-            <UserCheck className="w-4 h-4 text-[#D4AF37]" />
-            <span>1-Click Store Owner Login (Fast Preview)</span>
-          </button>
-
           <button
             id="google-signin-btn"
             type="button"
