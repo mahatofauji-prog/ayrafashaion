@@ -237,36 +237,6 @@ export const CatalogueView: React.FC<CatalogueViewProps> = ({
                       className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
                     />
 
-                    {/* Category Tag */}
-                    <div className="absolute top-2.5 left-2.5">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-black/80 backdrop-blur-md text-[#D4AF37] border border-[#D4AF37]/30">
-                        {product.categoryName}
-                      </span>
-                    </div>
-
-                    {/* Availability Badge */}
-                    <div className="absolute top-2.5 right-2.5">
-                      <span
-                        className={`inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider backdrop-blur-md ${
-                          isAvailable
-                            ? 'bg-emerald-950/90 text-emerald-400 border border-emerald-500/50'
-                            : 'bg-rose-950/90 text-rose-400 border border-rose-500/50'
-                        }`}
-                      >
-                        {isAvailable ? (
-                          <>
-                            <CheckCircle className="w-2.5 h-2.5" />
-                            <span>AVAILABLE</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-2.5 h-2.5" />
-                            <span>OUT OF STOCK</span>
-                          </>
-                        )}
-                      </span>
-                    </div>
-
                     {/* Quick Share Button */}
                     <button
                       onClick={(e) => handleShareProduct(product, e)}
@@ -280,6 +250,38 @@ export const CatalogueView: React.FC<CatalogueViewProps> = ({
                   {/* Product Info */}
                   <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between">
                     <div>
+                      {/* Responsive Badge Container (Category & Availability) */}
+                      <div className="flex flex-wrap items-center gap-1.5 mb-2.5 max-w-full">
+                        {/* Category Tag */}
+                        <span 
+                          className="px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-bold uppercase tracking-wider bg-zinc-900/90 text-[#D4AF37] border border-[#D4AF37]/25 truncate max-w-full"
+                          title={product.categoryName}
+                        >
+                          {product.categoryName}
+                        </span>
+
+                        {/* Availability Badge */}
+                        <span
+                          className={`inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider shrink-0 ${
+                            isAvailable
+                              ? 'bg-emerald-950/90 text-emerald-400 border border-emerald-500/40'
+                              : 'bg-rose-950/90 text-rose-400 border border-rose-500/40'
+                          }`}
+                        >
+                          {isAvailable ? (
+                            <>
+                              <CheckCircle className="w-2.5 h-2.5 text-emerald-400" />
+                              <span>AVAILABLE</span>
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="w-2.5 h-2.5 text-rose-400" />
+                              <span>OUT OF STOCK</span>
+                            </>
+                          )}
+                        </span>
+                      </div>
+
                       <h3 className="font-serif font-bold text-xs sm:text-base text-white group-hover:text-[#F1D77A] transition-colors line-clamp-1">
                         {product.name}
                       </h3>
