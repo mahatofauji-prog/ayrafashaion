@@ -305,17 +305,103 @@ export default function App() {
     }
     setCurrentUser(null);
     showToast('Signed out of admin portal.', 'info');
-    setCurrentView('catalogue');
+    setCurrentView('admin-login');
+    window.history.replaceState({}, '', '/ayradmin');
   };
 
-  // Route protection
+  // Path to View mapping
+  const getPathFromView = (view: ViewMode): string => {
+    switch (view) {
+      case 'admin-login':
+        return '/ayradmin';
+      case 'admin-dashboard':
+        return '/ayradmin/dashboard';
+      case 'admin-products':
+        return '/ayradmin/products';
+      case 'admin-categories':
+        return '/ayradmin/categories';
+      case 'admin-settings':
+        return '/ayradmin/settings';
+      case 'admin-banners':
+        return '/ayradmin/advertisement';
+      case 'catalogue':
+      default:
+        return '/';
+    }
+  };
+
+  const syncUrlForView = (view: ViewMode, replace: boolean = false) => {
+    const targetPath = getPathFromView(view);
+    if (window.location.pathname !== targetPath) {
+      if (replace) {
+        window.history.replaceState({}, '', targetPath);
+      } else {
+        window.history.pushState({}, '', targetPath);
+      }
+    }
+  };
+
+  // Sync state from current browser pathname
+  const syncViewFromLocation = useCallback((isAuthenticated: boolean) => {
+    const path = window.location.pathname.toLowerCase().replace(/\/$/, '');
+
+    if (path === '/ayradmin' || path.startsWith('/ayradmin/')) {
+      if (!isAuthenticated) {
+        setCurrentView('admin-login');
+        if (path !== '/ayradmin') {
+          window.history.replaceState({}, '', '/ayradmin');
+        }
+      } else {
+        if (path === '/ayradmin/products') {
+          setCurrentView('admin-products');
+        } else if (path === '/ayradmin/categories') {
+          setCurrentView('admin-categories');
+        } else if (path === '/ayradmin/settings') {
+          setCurrentView('admin-settings');
+        } else if (path === '/ayradmin/advertisement' || path === '/ayradmin/banners') {
+          setCurrentView('admin-banners');
+        } else {
+          setCurrentView('admin-dashboard');
+          if (path !== '/ayradmin/dashboard') {
+            window.history.replaceState({}, '', '/ayradmin/dashboard');
+          }
+        }
+      }
+    } else {
+      setCurrentView('catalogue');
+    }
+  }, []);
+
+  // Sync location on mount and when auth state initializes
+  useEffect(() => {
+    if (authInitialized) {
+      const isAuth = checkIsAdminAuthenticated();
+      syncViewFromLocation(isAuth);
+    }
+  }, [authInitialized, checkIsAdminAuthenticated, syncViewFromLocation]);
+
+  // Handle browser back/forward buttons
+  useEffect(() => {
+    const handlePopState = () => {
+      const isAuth = checkIsAdminAuthenticated();
+      syncViewFromLocation(isAuth);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [checkIsAdminAuthenticated, syncViewFromLocation]);
+
+  // Route protection & navigation
   const navigateTo = (view: ViewMode) => {
     setIsProductModalOpen(false);
     const isAuthenticated = checkIsAdminAuthenticated();
+
     if (view.startsWith('admin') && view !== 'admin-login' && !isAuthenticated) {
       setCurrentView('admin-login');
+      syncUrlForView('admin-login');
     } else {
       setCurrentView(view);
+      syncUrlForView(view);
     }
   };
 

@@ -140,36 +140,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               </>
             ) : (
-              <>
-                <button
-                  id="nav-share-catalogue"
-                  onClick={onShare}
-                  className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider text-[#D4AF37] bg-[#141414] border border-[#D4AF37]/40 flex items-center space-x-1"
-                >
-                  <Share2 className="w-3 h-3 text-[#D4AF37]" />
-                  <span>Share</span>
-                </button>
-
-                {isAuthenticated ? (
-                  <button
-                    id="nav-goto-dashboard"
-                    onClick={() => onNavigate('admin-dashboard')}
-                    className="px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-wider text-black bg-[#D4AF37] flex items-center space-x-1 shadow-sm"
-                  >
-                    <LayoutDashboard className="w-3 h-3" />
-                    <span>Admin</span>
-                  </button>
-                ) : (
-                  <button
-                    id="nav-owner-login"
-                    onClick={() => onNavigate('admin-login')}
-                    className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider text-zinc-300 border border-zinc-700 bg-[#121212] flex items-center space-x-1"
-                  >
-                    <LogIn className="w-3 h-3 text-[#D4AF37]" />
-                    <span>Login</span>
-                  </button>
-                )}
-              </>
+              <button
+                id="nav-share-catalogue"
+                onClick={onShare}
+                className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider text-[#D4AF37] bg-[#141414] border border-[#D4AF37]/40 flex items-center space-x-1"
+              >
+                <Share2 className="w-3 h-3 text-[#D4AF37]" />
+                <span>Share</span>
+              </button>
             )}
           </div>
         </div>
@@ -295,36 +273,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               </>
             ) : (
-              <>
-                <button
-                  id="nav-share-catalogue-desktop"
-                  onClick={onShare}
-                  className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider text-[#D4AF37] bg-[#121212] hover:bg-[#1A1A1A] border border-[#D4AF37]/30 transition-colors"
-                >
-                  <Share2 className="w-4 h-4 text-[#D4AF37]" />
-                  <span>Share</span>
-                </button>
-
-                {isAuthenticated ? (
-                  <button
-                    id="nav-goto-dashboard-desktop"
-                    onClick={() => onNavigate('admin-dashboard')}
-                    className="flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-extrabold uppercase tracking-wider text-black bg-[#D4AF37] hover:bg-[#C9A227] transition-all shadow-md"
-                  >
-                    <LayoutDashboard className="w-4 h-4" />
-                    <span>Dashboard</span>
-                  </button>
-                ) : (
-                  <button
-                    id="nav-owner-login-desktop"
-                    onClick={() => onNavigate('admin-login')}
-                    className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider text-zinc-300 hover:text-white border border-zinc-700 hover:border-[#D4AF37]/50 hover:bg-[#121212] transition-colors"
-                  >
-                    <LogIn className="w-4 h-4 text-[#D4AF37]" />
-                    <span>Owner Login</span>
-                  </button>
-                )}
-              </>
+              <button
+                id="nav-share-catalogue-desktop"
+                onClick={onShare}
+                className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider text-[#D4AF37] bg-[#121212] hover:bg-[#1A1A1A] border border-[#D4AF37]/30 transition-colors"
+              >
+                <Share2 className="w-4 h-4 text-[#D4AF37]" />
+                <span>Share</span>
+              </button>
             )}
           </div>
         </div>
