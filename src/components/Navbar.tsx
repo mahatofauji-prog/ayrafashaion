@@ -71,19 +71,19 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="sm:hidden px-3 py-2 space-y-1.5 border-b border-zinc-900/60">
         {/* Mobile Row 1: Brand & Direct Call / WhatsApp */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center space-x-2.5 cursor-pointer min-w-0" onClick={() => onNavigate('catalogue')}>
+          <div className="flex items-center space-x-2 cursor-pointer min-w-0" onClick={() => onNavigate('catalogue')}>
             {businessProfile.logoUrl ? (
               <img
                 src={businessProfile.logoUrl}
                 alt={businessProfile.businessName}
-                className="w-12 h-12 rounded-full object-cover border border-[#D4AF37] shrink-0"
+                className="w-10 h-10 rounded-full object-cover border border-[#D4AF37] shrink-0"
               />
             ) : (
-              <div className="w-12 h-12 rounded-full bg-[#121212] border border-[#D4AF37] text-[#D4AF37] flex items-center justify-center font-serif text-base font-bold shrink-0">
+              <div className="w-10 h-10 rounded-full bg-[#121212] border border-[#D4AF37] text-[#D4AF37] flex items-center justify-center font-serif text-sm font-bold shrink-0">
                 A
               </div>
             )}
-            <span className="font-serif font-black text-base tracking-wider text-white truncate">
+            <span className="font-serif font-black text-xs min-[360px]:text-sm sm:text-base tracking-wider text-white leading-tight uppercase whitespace-normal">
               {businessProfile.businessName}
             </span>
           </div>

@@ -353,37 +353,38 @@ export const CatalogueView: React.FC<CatalogueViewProps> = ({
                   </div>
 
                   {/* Product Info */}
-                  <div className="p-3.5 sm:p-5 flex-1 flex flex-col justify-between">
+                  <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between">
                     <div>
-                      <h3 className="font-serif font-bold text-sm sm:text-base text-white group-hover:text-[#F1D77A] transition-colors line-clamp-1">
+                      <h3 className="font-serif font-bold text-xs sm:text-base text-white group-hover:text-[#F1D77A] transition-colors line-clamp-1">
                         {product.name}
                       </h3>
                       {product.description && (
-                        <p className="mt-1 text-[11px] sm:text-xs text-zinc-400 line-clamp-2 leading-relaxed">
+                        <p className="mt-1 text-[10px] sm:text-xs text-zinc-400 line-clamp-2 leading-relaxed">
                           {product.description}
                         </p>
                       )}
                     </div>
 
-                    <div className="mt-3 sm:mt-4 pt-2.5 sm:pt-3 border-t border-zinc-800/80 flex items-center justify-between">
+                    {/* Bottom Section: Price -> Order Now Button */}
+                    <div className="mt-3 pt-2.5 border-t border-zinc-800/80 flex flex-col gap-2">
                       <div>
-                        <span className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider block">Price</span>
-                        <span className="text-base sm:text-xl font-extrabold text-[#D4AF37]">
+                        <span className="text-[9px] sm:text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">PRICE</span>
+                        <span className="text-sm sm:text-lg font-black text-[#D4AF37]">
                           ₹{product.price.toLocaleString('en-IN')}
                         </span>
                       </div>
 
-                      {/* Primary WhatsApp Enquiry Button */}
+                      {/* Primary WhatsApp Order Now Button */}
                       <a
                         id={`whatsapp-btn-${product.id}`}
                         href={whatsappUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="flex items-center space-x-1 sm:space-x-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-[#D4AF37] hover:bg-[#C9A227] text-black text-[11px] sm:text-xs font-extrabold uppercase tracking-wider shadow-sm transition-all"
+                        className="w-full flex items-center justify-center space-x-1.5 py-2 px-3 rounded-xl bg-[#D4AF37] hover:bg-[#C9A227] text-black text-[11px] sm:text-xs font-black uppercase tracking-wider shadow-md transition-all active:scale-[0.98]"
                       >
-                        <MessageCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-black" />
-                        <span>Enquire</span>
+                        <MessageCircle className="w-3.5 h-3.5 fill-black" />
+                        <span>ORDER NOW</span>
                       </a>
                     </div>
                   </div>
@@ -486,7 +487,7 @@ export const CatalogueView: React.FC<CatalogueViewProps> = ({
                   className="w-full flex items-center justify-center space-x-2 py-3.5 px-4 rounded-xl bg-[#D4AF37] hover:bg-[#C9A227] text-black font-extrabold uppercase tracking-wider text-xs shadow-lg shadow-[#D4AF37]/20 transition-all"
                 >
                   <MessageCircle className="w-4 h-4 fill-black" />
-                  <span>ENQUIRE ON WHATSAPP</span>
+                  <span>ORDER NOW ON WHATSAPP</span>
                 </a>
 
                 <div className="grid grid-cols-2 gap-2">
