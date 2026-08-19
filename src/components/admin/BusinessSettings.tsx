@@ -241,7 +241,7 @@ export const BusinessSettings: React.FC<BusinessSettingsProps> = ({
 
         <div className="flex flex-col sm:flex-row items-center gap-6 pt-2">
           {/* Logo Preview */}
-          <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-[#D4AF37] bg-[#141414] shrink-0 shadow-lg flex items-center justify-center">
+          <div className="relative w-36 h-36 rounded-full overflow-hidden border-2 border-[#D4AF37] bg-[#141414] shrink-0 shadow-lg flex items-center justify-center">
             {logoUrl ? (
               <img src={logoUrl} alt="Store Logo" className="w-full h-full object-cover" />
             ) : (

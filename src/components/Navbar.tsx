@@ -71,15 +71,15 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="sm:hidden px-3 py-2 space-y-1.5 border-b border-zinc-900/60">
         {/* Mobile Row 1: Brand & Direct Call / WhatsApp */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center space-x-2 cursor-pointer min-w-0" onClick={() => onNavigate('catalogue')}>
+          <div className="flex items-center space-x-2.5 cursor-pointer min-w-0" onClick={() => onNavigate('catalogue')}>
             {businessProfile.logoUrl ? (
               <img
                 src={businessProfile.logoUrl}
                 alt={businessProfile.businessName}
-                className="w-8 h-8 rounded-full object-cover border border-[#D4AF37] shrink-0"
+                className="w-12 h-12 rounded-full object-cover border border-[#D4AF37] shrink-0"
               />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-[#121212] border border-[#D4AF37] text-[#D4AF37] flex items-center justify-center font-serif text-sm font-bold shrink-0">
+              <div className="w-12 h-12 rounded-full bg-[#121212] border border-[#D4AF37] text-[#D4AF37] flex items-center justify-center font-serif text-base font-bold shrink-0">
                 A
               </div>
             )}
@@ -179,15 +179,15 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="hidden sm:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
           {/* Logo & Brand */}
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => onNavigate('catalogue')}>
+          <div className="flex items-center space-x-3.5 cursor-pointer" onClick={() => onNavigate('catalogue')}>
             {businessProfile.logoUrl ? (
               <img
                 src={businessProfile.logoUrl}
                 alt={businessProfile.businessName}
-                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-[#D4AF37] shadow-[0_0_10px_rgba(212,175,55,0.2)] shrink-0"
+                className="w-[60px] h-[60px] sm:w-[72px] sm:h-[72px] rounded-full object-cover border-2 border-[#D4AF37] shadow-[0_0_12px_rgba(212,175,55,0.25)] shrink-0"
               />
             ) : (
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#121212] border-2 border-[#D4AF37] text-[#D4AF37] flex items-center justify-center font-serif text-xl sm:text-2xl font-bold tracking-tighter shrink-0">
+              <div className="w-[60px] h-[60px] sm:w-[72px] sm:h-[72px] rounded-full bg-[#121212] border-2 border-[#D4AF37] text-[#D4AF37] flex items-center justify-center font-serif text-2xl sm:text-3xl font-bold tracking-tighter shrink-0">
                 A
               </div>
             )}

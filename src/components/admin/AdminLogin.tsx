@@ -183,7 +183,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
       <div className="max-w-md w-full bg-[#0D0D0D] rounded-3xl border border-[#D4AF37]/30 shadow-2xl p-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-full bg-gradient-to-b from-[#18181B] to-[#0D0D0D] p-1 border border-[#D4AF37]/50 shadow-md mx-auto mb-4 overflow-hidden">
+          <div className="w-24 h-24 rounded-full bg-gradient-to-b from-[#18181B] to-[#0D0D0D] p-1 border-2 border-[#D4AF37]/60 shadow-lg mx-auto mb-4 overflow-hidden">
             <img
               src="/logo.jpg"
               alt={businessProfile.businessName}

@@ -97,7 +97,7 @@ export const CatalogueView: React.FC<CatalogueViewProps> = ({
                 <img
                   src={businessProfile.logoUrl}
                   alt={businessProfile.businessName}
-                  className="w-14 h-14 sm:w-20 sm:h-20 rounded-full object-cover border-2 border-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.25)] shrink-0"
+                  className="w-[84px] h-[84px] sm:w-[120px] sm:h-[120px] rounded-full object-cover border-2 sm:border-3 border-[#D4AF37] shadow-[0_0_20px_rgba(212,175,55,0.3)] shrink-0"
                 />
               )}
               <div>
