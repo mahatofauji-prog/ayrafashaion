@@ -21,8 +21,8 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
   onBackToCatalogue,
   onShowToast,
 }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('ayra.fashion.assam@gmail.com');
+  const [password, setPassword] = useState('Ayra@2026');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [isRegisterMode, setIsRegisterMode] = useState(false);
@@ -42,14 +42,26 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
         await createUserWithEmailAndPassword(auth, email.trim(), password);
         onShowToast('Account registered successfully!', 'success');
       } else {
-        await signInWithEmailAndPassword(auth, email.trim(), password);
+        try {
+          await signInWithEmailAndPassword(auth, email.trim(), password);
+        } catch (signInErr: any) {
+          if (
+            signInErr.code === 'auth/user-not-found' ||
+            signInErr.code === 'auth/invalid-credential'
+          ) {
+            // Auto-create account for first-time login
+            await createUserWithEmailAndPassword(auth, email.trim(), password);
+          } else {
+            throw signInErr;
+          }
+        }
         onShowToast('Welcome back, store owner!', 'success');
       }
       onLoginSuccess();
     } catch (err: any) {
       console.error('Auth error:', err);
-      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-        setErrorMsg('Invalid email or password. If you are logging in for the first time, you can register or use 1-Click Demo Login below.');
+      if (err.code === 'auth/wrong-password') {
+        setErrorMsg('Incorrect password. Please verify your password.');
       } else if (err.code === 'auth/email-already-in-use') {
         setErrorMsg('An account with this email already exists. Please login instead.');
       } else if (err.code === 'auth/weak-password') {
@@ -83,8 +95,8 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
   const handleQuickDemoLogin = async () => {
     setIsLoading(true);
     setErrorMsg('');
-    const demoEmail = 'owner@ayrafashion.com';
-    const demoPassword = 'ayrafashion123';
+    const demoEmail = 'ayra.fashion.assam@gmail.com';
+    const demoPassword = 'Ayra@2026';
 
     try {
       try {

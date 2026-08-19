@@ -6,12 +6,15 @@ import {
   Mail,
   Share2,
   Copy,
-  Check,
   Save,
   RefreshCw,
-  Sparkles,
-  ExternalLink,
+  Lock,
+  KeyRound,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
+import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { auth } from '../../firebase/config';
 import { BusinessProfile } from '../../types';
 
 interface BusinessSettingsProps {
@@ -39,6 +42,68 @@ export const BusinessSettings: React.FC<BusinessSettingsProps> = ({
 
   const [isSaving, setIsSaving] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+
+  // Password Change State
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters long.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New passwords do not match.');
+      return;
+    }
+
+    const user = auth.currentUser;
+    if (!user) {
+      setPasswordError('You must be logged in to change your password.');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      if (currentPassword && user.email) {
+        try {
+          const credential = EmailAuthProvider.credential(user.email, currentPassword);
+          await reauthenticateWithCredential(user, credential);
+        } catch (reauthErr) {
+          console.warn('Reauth failed or skipped:', reauthErr);
+        }
+      }
+      await updatePassword(user, newPassword);
+      setPasswordSuccess('Password updated successfully!');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      onShowToast('Password changed successfully! Please use your new password next time.', 'success');
+    } catch (err: any) {
+      console.error('Password update error:', err);
+      if (err.code === 'auth/requires-recent-login') {
+        if (!currentPassword) {
+          setPasswordError('Please enter your current password to confirm this security change.');
+        } else {
+          setPasswordError('Incorrect current password or session expired. Please log out and log in again.');
+        }
+      } else if (err.code === 'auth/weak-password') {
+        setPasswordError('Password should be at least 6 characters long.');
+      } else {
+        setPasswordError(err.message || 'Failed to update password.');
+      }
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -260,6 +325,104 @@ export const BusinessSettings: React.FC<BusinessSettingsProps> = ({
           >
             <Save className="w-4 h-4" />
             <span>{isSaving ? 'Saving Changes...' : 'Save Settings'}</span>
+          </button>
+        </div>
+      </form>
+
+      {/* Security & Password Change Section */}
+      <form onSubmit={handleChangePassword} className="bg-[#0D0D0D] rounded-3xl p-6 sm:p-8 border border-zinc-800 shadow-md space-y-6">
+        <h3 className="text-lg font-serif font-black text-white pb-4 border-b border-zinc-800 flex items-center space-x-2">
+          <KeyRound className="w-5 h-5 text-[#D4AF37]" />
+          <span>Security & Change Password</span>
+        </h3>
+
+        <p className="text-xs text-zinc-400">
+          Logged in as: <span className="text-white font-mono font-semibold">{auth.currentUser?.email || 'ayra.fashion.assam@gmail.com'}</span>. You can change your admin portal password below.
+        </p>
+
+        {passwordError && (
+          <div className="p-4 rounded-xl bg-rose-950/80 border border-rose-800 text-rose-300 text-xs flex items-start space-x-2.5">
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+            <span>{passwordError}</span>
+          </div>
+        )}
+
+        {passwordSuccess && (
+          <div className="p-4 rounded-xl bg-emerald-950/80 border border-emerald-800 text-emerald-200 text-xs flex items-start space-x-2.5">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+            <span>{passwordSuccess}</span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          {/* Current Password */}
+          <div>
+            <label className="block text-xs font-bold text-[#D4AF37] uppercase tracking-wider mb-1.5">
+              Current Password
+            </label>
+            <div className="relative">
+              <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+              <input
+                id="current-password-input"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="Ayra@2026"
+                className="w-full pl-10 pr-4 py-2.5 bg-[#141414] border border-zinc-800 rounded-xl text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#D4AF37]"
+              />
+            </div>
+          </div>
+
+          {/* New Password */}
+          <div>
+            <label className="block text-xs font-bold text-[#D4AF37] uppercase tracking-wider mb-1.5">
+              New Password <span className="text-rose-500">*</span>
+            </label>
+            <div className="relative">
+              <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+              <input
+                id="new-password-input"
+                type="password"
+                required
+                minLength={6}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full pl-10 pr-4 py-2.5 bg-[#141414] border border-zinc-800 rounded-xl text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#D4AF37]"
+              />
+            </div>
+          </div>
+
+          {/* Confirm New Password */}
+          <div>
+            <label className="block text-xs font-bold text-[#D4AF37] uppercase tracking-wider mb-1.5">
+              Confirm New Password <span className="text-rose-500">*</span>
+            </label>
+            <div className="relative">
+              <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+              <input
+                id="confirm-password-input"
+                type="password"
+                required
+                minLength={6}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full pl-10 pr-4 py-2.5 bg-[#141414] border border-zinc-800 rounded-xl text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#D4AF37]"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-4 border-t border-zinc-800 flex justify-end">
+          <button
+            id="change-password-btn"
+            type="submit"
+            disabled={isChangingPassword}
+            className="flex items-center space-x-2 px-6 py-2.5 rounded-xl bg-[#D4AF37] hover:bg-[#C9A227] text-black text-xs font-extrabold uppercase tracking-wider shadow-md transition-all"
+          >
+            <KeyRound className="w-4 h-4" />
+            <span>{isChangingPassword ? 'Updating Password...' : 'Update Password'}</span>
           </button>
         </div>
       </form>
