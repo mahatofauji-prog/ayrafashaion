@@ -1,10 +1,6 @@
 import React, { useState } from 'react';
-import { Lock, Mail, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signInWithPopup,
-} from 'firebase/auth';
+import { Lock, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
+import { signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider } from '../../firebase/config';
 import { BusinessProfile } from '../../types';
 
@@ -21,60 +17,34 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
   onBackToCatalogue,
   onShowToast,
 }) => {
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [isRegisterMode, setIsRegisterMode] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const enteredEmail = email.trim().toLowerCase();
-    const enteredPassword = password;
+    const enteredPassword = password.trim();
 
-    if (!enteredEmail || !enteredPassword) {
-      setErrorMsg('Please enter both email and password.');
+    if (!enteredPassword) {
+      setErrorMsg('Please enter the admin password.');
       return;
     }
 
     setIsLoading(true);
     setErrorMsg('');
 
-    const completeLogin = () => {
-      localStorage.setItem('ayra_admin_session', 'true');
-      onLoginSuccess();
-    };
+    // Check custom updated password from localStorage or master password "Ayra@2026"
+    const savedPassword = localStorage.getItem('ayra_admin_custom_password') || 'Ayra@2026';
 
-    try {
-      if (isRegisterMode) {
-        await createUserWithEmailAndPassword(auth, enteredEmail, enteredPassword);
-        onShowToast('Admin account registered successfully!', 'success');
-        completeLogin();
-      } else {
-        await signInWithEmailAndPassword(auth, enteredEmail, enteredPassword);
-        onShowToast('Welcome back, store owner!', 'success');
-        completeLogin();
-      }
-    } catch (err: any) {
-      console.error('Auth error:', err);
-      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setErrorMsg('Invalid email or password. Please verify your credentials.');
-      } else if (err.code === 'auth/user-not-found') {
-        setErrorMsg('No account found with this email.');
-      } else if (err.code === 'auth/email-already-in-use') {
-        setErrorMsg('An account with this email already exists. Please login instead.');
-      } else if (err.code === 'auth/weak-password') {
-        setErrorMsg('Password should be at least 6 characters long.');
-      } else if (err.code === 'auth/invalid-email') {
-        setErrorMsg('Please enter a valid email address.');
-      } else if (err.code === 'auth/operation-not-allowed') {
-        setErrorMsg('Email/Password sign-in is disabled in Firebase Console. Please use "SIGN IN WITH GOOGLE ACCOUNT" below, or enable Email/Password in Firebase Console -> Authentication -> Sign-in method.');
-      } else {
-        setErrorMsg(err.message || 'Authentication failed. Please try again.');
-      }
-    } finally {
-      setIsLoading(false);
+    if (enteredPassword === savedPassword || enteredPassword === 'Ayra@2026') {
+      localStorage.setItem('ayra_admin_session', 'true');
+      onShowToast('Welcome back, AYRA FASHION Admin!', 'success');
+      onLoginSuccess();
+    } else {
+      setErrorMsg('Incorrect password. Please enter the valid admin password.');
     }
+
+    setIsLoading(false);
   };
 
   const handleGoogleLogin = async () => {
@@ -128,26 +98,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
           <div>
             <label className="block text-xs font-bold text-[#D4AF37] uppercase tracking-wider mb-1.5">
-              Email Address
-            </label>
-            <div className="relative">
-              <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
-              <input
-                id="admin-email-input"
-                type="email"
-                required
-                autoComplete="off"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your admin email"
-                className="w-full pl-10 pr-4 py-3 bg-[#141414] border border-zinc-800 rounded-xl text-xs sm:text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#D4AF37] transition-all"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-[#D4AF37] uppercase tracking-wider mb-1.5">
-              Password
+              Admin Password
             </label>
             <div className="relative">
               <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
@@ -158,7 +109,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
+                placeholder="Enter password (e.g. Ayra@2026)"
                 className="w-full pl-10 pr-4 py-3 bg-[#141414] border border-zinc-800 rounded-xl text-xs sm:text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#D4AF37] transition-all"
               />
             </div>
@@ -168,13 +119,13 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
             id="admin-login-submit-btn"
             type="submit"
             disabled={isLoading}
-            className="w-full py-3.5 px-4 rounded-xl bg-[#D4AF37] hover:bg-[#C9A227] text-black text-xs font-extrabold uppercase tracking-wider shadow-md transition-all flex items-center justify-center space-x-2"
+            className="w-full py-3.5 px-4 rounded-xl bg-[#D4AF37] hover:bg-[#C9A227] text-black text-xs font-extrabold uppercase tracking-wider shadow-md transition-all flex items-center justify-center space-x-2 cursor-pointer"
           >
             {isLoading ? (
               <span>Authenticating...</span>
             ) : (
               <>
-                <span>{isRegisterMode ? 'Register New Owner Account' : 'Login to Dashboard'}</span>
+                <span>Login to Dashboard</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
@@ -196,30 +147,19 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
             type="button"
             onClick={handleGoogleLogin}
             disabled={isLoading}
-            className="w-full py-3 px-4 rounded-xl bg-[#141414] hover:bg-[#1A1A1A] border border-zinc-800 text-zinc-300 text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center space-x-2"
+            className="w-full py-3 px-4 rounded-xl bg-[#141414] hover:bg-[#1A1A1A] border border-zinc-800 text-zinc-300 text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center space-x-2 cursor-pointer"
           >
             <ShieldCheck className="w-4 h-4 text-zinc-400" />
             <span>Sign in with Google Account</span>
           </button>
         </div>
 
-        {/* Toggle mode and back link */}
-        <div className="mt-8 pt-4 border-t border-zinc-800/80 flex items-center justify-between text-xs text-zinc-400">
-          <button
-            type="button"
-            onClick={() => {
-              setIsRegisterMode(!isRegisterMode);
-              setErrorMsg('');
-            }}
-            className="text-zinc-300 hover:text-[#D4AF37] font-medium transition-colors"
-          >
-            {isRegisterMode ? 'Already have account? Login' : 'Need new account? Register'}
-          </button>
-
+        {/* Back link */}
+        <div className="mt-8 pt-4 border-t border-zinc-800/80 flex items-center justify-end text-xs text-zinc-400">
           <button
             type="button"
             onClick={onBackToCatalogue}
-            className="text-[#D4AF37] hover:underline font-semibold"
+            className="text-[#D4AF37] hover:underline font-semibold cursor-pointer"
           >
             ← Back to Catalogue
           </button>

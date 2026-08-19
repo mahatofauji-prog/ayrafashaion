@@ -110,6 +110,7 @@ export const BusinessSettings: React.FC<BusinessSettingsProps> = ({
       } catch (authPassErr) {
         console.warn('Firebase Auth updatePassword warning:', authPassErr);
       }
+      localStorage.setItem('ayra_admin_custom_password', newPassword);
       setPasswordSuccess('Password updated successfully!');
       setCurrentPassword('');
       setNewPassword('');
