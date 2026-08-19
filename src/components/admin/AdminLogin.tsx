@@ -68,7 +68,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
       } else if (err.code === 'auth/invalid-email') {
         setErrorMsg('Please enter a valid email address.');
       } else if (err.code === 'auth/operation-not-allowed') {
-        setErrorMsg('Email/Password login is not enabled in Firebase Console.');
+        setErrorMsg('Email/Password sign-in is disabled in Firebase Console. Please use "SIGN IN WITH GOOGLE ACCOUNT" below, or enable Email/Password in Firebase Console -> Authentication -> Sign-in method.');
       } else {
         setErrorMsg(err.message || 'Authentication failed. Please try again.');
       }
