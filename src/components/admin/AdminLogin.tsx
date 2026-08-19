@@ -47,16 +47,21 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
       enteredEmail === 'owner@ayrafashion.com' ||
       enteredEmail === businessProfile.email?.trim().toLowerCase();
 
+    const completeLogin = () => {
+      localStorage.setItem('ayra_admin_session', 'true');
+      onLoginSuccess();
+    };
+
     try {
       if (isRegisterMode) {
         await createUserWithEmailAndPassword(auth, enteredEmail, enteredPassword);
         onShowToast('Account registered successfully!', 'success');
-        onLoginSuccess();
+        completeLogin();
       } else {
         try {
           await signInWithEmailAndPassword(auth, enteredEmail, enteredPassword);
           onShowToast('Welcome back, store owner!', 'success');
-          onLoginSuccess();
+          completeLogin();
         } catch (signInErr: any) {
           console.warn('Firebase Auth signin notice:', signInErr);
           if (
@@ -67,7 +72,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
               // Auto-create account for first-time login
               await createUserWithEmailAndPassword(auth, enteredEmail, enteredPassword);
               onShowToast('Welcome back, store owner!', 'success');
-              onLoginSuccess();
+              completeLogin();
               return;
             } catch (createErr: any) {
               if (
@@ -76,7 +81,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
                 enteredPassword === savedPassword
               ) {
                 onShowToast('Logged in as AYRA FASHION Store Owner!', 'success');
-                onLoginSuccess();
+                completeLogin();
                 return;
               }
               throw createErr;
@@ -87,7 +92,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
             enteredPassword === savedPassword
           ) {
             onShowToast('Logged in as AYRA FASHION Store Owner!', 'success');
-            onLoginSuccess();
+            completeLogin();
             return;
           } else {
             throw signInErr;
@@ -99,7 +104,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
       // Fallback check if auth/operation-not-allowed or provider error happens on Vercel/Firebase
       if (isOwnerEmailMatch && enteredPassword === savedPassword) {
         onShowToast('Logged in as AYRA FASHION Store Owner!', 'success');
-        onLoginSuccess();
+        completeLogin();
         return;
       }
 
@@ -128,6 +133,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
     setErrorMsg('');
     try {
       await signInWithPopup(auth, googleProvider);
+      localStorage.setItem('ayra_admin_session', 'true');
       onShowToast('Signed in successfully with Google!', 'success');
       onLoginSuccess();
     } catch (err: any) {
@@ -158,11 +164,13 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
           throw signInErr;
         }
       }
+      localStorage.setItem('ayra_admin_session', 'true');
       onShowToast('Logged in as AYRA FASHION Store Owner!', 'success');
       onLoginSuccess();
     } catch (err: any) {
       console.error('Quick login error:', err);
       // Fallback direct success if Firebase auth mock applies
+      localStorage.setItem('ayra_admin_session', 'true');
       onShowToast('Demo session authorized!', 'success');
       onLoginSuccess();
     } finally {

@@ -83,10 +83,20 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
+      if (user) {
+        localStorage.setItem('ayra_admin_session', 'true');
+      }
       setAuthInitialized(true);
     });
     return () => unsubscribe();
   }, []);
+
+  // Persistent Auth Session Check
+  const checkIsAdminAuthenticated = useCallback(() => {
+    return Boolean(
+      currentUser || auth.currentUser || localStorage.getItem('ayra_admin_session') === 'true'
+    );
+  }, [currentUser]);
 
   // Fetch initial data
   const loadCatalogueData = useCallback(async () => {
@@ -279,7 +289,13 @@ export default function App() {
   // Logout Handler
   const handleLogout = async () => {
     setIsProductModalOpen(false);
-    await signOut(auth);
+    localStorage.removeItem('ayra_admin_session');
+    try {
+      await signOut(auth);
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+    setCurrentUser(null);
     showToast('Signed out of admin portal.', 'info');
     setCurrentView('catalogue');
   };
@@ -287,7 +303,8 @@ export default function App() {
   // Route protection
   const navigateTo = (view: ViewMode) => {
     setIsProductModalOpen(false);
-    if (view.startsWith('admin') && view !== 'admin-login' && !currentUser) {
+    const isAuthenticated = checkIsAdminAuthenticated();
+    if (view.startsWith('admin') && view !== 'admin-login' && !isAuthenticated) {
       setCurrentView('admin-login');
     } else {
       setCurrentView(view);
@@ -300,7 +317,7 @@ export default function App() {
       <Navbar
         currentView={currentView}
         onNavigate={navigateTo}
-        isAuthenticated={!!currentUser}
+        isAuthenticated={checkIsAdminAuthenticated()}
         onLogout={handleLogout}
         businessProfile={businessProfile}
         onShare={handleShareCatalogue}
@@ -321,8 +338,11 @@ export default function App() {
         {currentView === 'admin-login' && (
           <AdminLogin
             businessProfile={businessProfile}
-            onLoginSuccess={() => setCurrentView('admin-dashboard')}
-            onBackToCatalogue={() => setCurrentView('catalogue')}
+            onLoginSuccess={() => {
+              localStorage.setItem('ayra_admin_session', 'true');
+              navigateTo('admin-dashboard');
+            }}
+            onBackToCatalogue={() => navigateTo('catalogue')}
             onShowToast={showToast}
           />
         )}
@@ -335,9 +355,9 @@ export default function App() {
             onOpenAddProduct={handleOpenAddProduct}
             onEditProduct={handleOpenEditProduct}
             onToggleAvailability={handleToggleProductAvailability}
-            onNavigateToProducts={() => setCurrentView('admin-products')}
-            onNavigateToCategories={() => setCurrentView('admin-categories')}
-            onViewPublicCatalogue={() => setCurrentView('catalogue')}
+            onNavigateToProducts={() => navigateTo('admin-products')}
+            onNavigateToCategories={() => navigateTo('admin-categories')}
+            onViewPublicCatalogue={() => navigateTo('catalogue')}
             onShareCatalogue={handleShareCatalogue}
             onShowToast={showToast}
           />
