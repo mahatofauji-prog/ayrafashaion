@@ -159,9 +159,28 @@ export async function deleteCategory(id: string): Promise<{ success: boolean; me
   }
 }
 
+// Helper for local custom products persistence
+function getLocalCustomProducts(): Product[] {
+  try {
+    const raw = localStorage.getItem('ayra_custom_products');
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalCustomProducts(products: Product[]) {
+  try {
+    localStorage.setItem('ayra_custom_products', JSON.stringify(products));
+  } catch (err) {
+    console.warn('Failed to save products to localStorage:', err);
+  }
+}
+
 // ---- Product Services ----
 
 export async function getProducts(): Promise<Product[]> {
+  const localItems = getLocalCustomProducts();
   try {
     const colRef = collection(db, PRODUCTS_COL);
     const snap = await getDocs(colRef);
@@ -176,10 +195,20 @@ export async function getProducts(): Promise<Product[]> {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
-        await setDoc(prodDoc, prodData);
+        try {
+          await setDoc(prodDoc, prodData);
+        } catch (e) {
+          console.warn('Seeding product to Firestore notice:', e);
+        }
         seededProducts.push(prodData);
       }
-      return seededProducts;
+      const combined = [...seededProducts];
+      for (const lp of localItems) {
+        if (!combined.some(p => p.id === lp.id)) {
+          combined.push(lp);
+        }
+      }
+      return combined.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
     }
 
     const items = snap.docs.map(docSnap => ({
@@ -187,15 +216,30 @@ export async function getProducts(): Promise<Product[]> {
       ...docSnap.data(),
     })) as Product[];
 
+    // Merge any locally added products if not in firestore yet
+    const combined = [...items];
+    for (const lp of localItems) {
+      if (!combined.some(p => p.id === lp.id)) {
+        combined.push(lp);
+      }
+    }
+
     // Sort by createdAt descending
-    return items.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    return combined.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   } catch (error) {
-    console.warn('Error fetching products, falling back to initial data:', error);
-    return INITIAL_PRODUCTS.map(p => ({
+    console.warn('Error fetching products from Firestore, using cached/initial data:', error);
+    const fallback = INITIAL_PRODUCTS.map(p => ({
       ...p,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }));
+    const combined = [...fallback];
+    for (const lp of localItems) {
+      if (!combined.some(p => p.id === lp.id)) {
+        combined.push(lp);
+      }
+    }
+    return combined.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   }
 }
 
@@ -212,15 +256,26 @@ export async function addProduct(product: Omit<Product, 'id' | 'businessId' | 'c
     updatedAt: new Date().toISOString(),
   };
 
+  // Always update local cache
+  const currentLocals = getLocalCustomProducts();
+  saveLocalCustomProducts([newProduct, ...currentLocals]);
+
   try {
     await setDoc(doc(db, PRODUCTS_COL, id), newProduct);
-    return newProduct;
   } catch (error) {
-    handleFirestoreError(error, OperationType.CREATE, `${PRODUCTS_COL}/${id}`);
+    console.warn('Firestore write notice (product saved locally):', error);
   }
+  return newProduct;
 }
 
 export async function updateProduct(id: string, updates: Partial<Product>): Promise<void> {
+  const currentLocals = getLocalCustomProducts();
+  const idx = currentLocals.findIndex(p => p.id === id);
+  if (idx !== -1) {
+    currentLocals[idx] = { ...currentLocals[idx], ...updates, updatedAt: new Date().toISOString() };
+    saveLocalCustomProducts(currentLocals);
+  }
+
   try {
     const prodRef = doc(db, PRODUCTS_COL, id);
     await updateDoc(prodRef, {
@@ -228,15 +283,18 @@ export async function updateProduct(id: string, updates: Partial<Product>): Prom
       updatedAt: new Date().toISOString(),
     });
   } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, `${PRODUCTS_COL}/${id}`);
+    console.warn('Firestore update notice (updated locally):', error);
   }
 }
 
 export async function deleteProduct(id: string): Promise<void> {
+  const currentLocals = getLocalCustomProducts();
+  saveLocalCustomProducts(currentLocals.filter(p => p.id !== id));
+
   try {
     await deleteDoc(doc(db, PRODUCTS_COL, id));
   } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, `${PRODUCTS_COL}/${id}`);
+    console.warn('Firestore delete notice (deleted locally):', error);
   }
 }
 
