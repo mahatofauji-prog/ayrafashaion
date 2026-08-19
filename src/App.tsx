@@ -278,6 +278,7 @@ export default function App() {
 
   // Logout Handler
   const handleLogout = async () => {
+    setIsProductModalOpen(false);
     await signOut(auth);
     showToast('Signed out of admin portal.', 'info');
     setCurrentView('catalogue');
@@ -285,6 +286,7 @@ export default function App() {
 
   // Route protection
   const navigateTo = (view: ViewMode) => {
+    setIsProductModalOpen(false);
     if (view.startsWith('admin') && view !== 'admin-login' && !currentUser) {
       setCurrentView('admin-login');
     } else {
@@ -372,6 +374,7 @@ export default function App() {
             onSaveProfile={handleSaveBusinessProfile}
             onResetSeedData={handleResetSeedData}
             onShareCatalogue={handleShareCatalogue}
+            onOpenCatalogue={() => navigateTo('catalogue')}
             onShowToast={showToast}
           />
         )}

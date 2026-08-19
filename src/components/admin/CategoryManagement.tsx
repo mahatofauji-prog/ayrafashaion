@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, Layers, AlertCircle, Check, X, ShieldAlert } from 'lucide-react';
+import { Plus, Edit2, Trash2, Layers, AlertCircle, Check, X, FolderPlus } from 'lucide-react';
 import { Category, Product } from '../../types';
 
 interface CategoryManagementProps {
@@ -19,6 +19,7 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({
   onDeleteCategory,
   onShowToast,
 }) => {
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [newCatDesc, setNewCatDesc] = useState('');
   const [isAdding, setIsAdding] = useState(false);
@@ -42,6 +43,7 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({
       await onAddCategory(newCatName.trim(), newCatDesc.trim());
       setNewCatName('');
       setNewCatDesc('');
+      setIsAddModalOpen(false);
       onShowToast(`Category "${newCatName}" created successfully!`, 'success');
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to add category.');
@@ -74,14 +76,30 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 bg-[#050505] text-[#F5F5F5]">
-      {/* Header */}
-      <div>
-        <h2 className="text-2xl sm:text-3xl font-serif font-black text-white">
-          Category Management
-        </h2>
-        <p className="text-xs sm:text-sm text-zinc-400 font-medium mt-0.5">
-          Organize your clothing catalog into easy-to-browse categories
-        </p>
+      {/* Top Header & Action */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl sm:text-3xl font-serif font-black text-white">
+            Categories Management
+          </h2>
+          <p className="text-xs sm:text-sm text-zinc-400 font-medium mt-0.5">
+            Organize your clothing catalog into easy-to-browse product categories ({categories.length} total)
+          </p>
+        </div>
+
+        <button
+          id="open-add-category-modal-btn"
+          onClick={() => {
+            setErrorMsg('');
+            setNewCatName('');
+            setNewCatDesc('');
+            setIsAddModalOpen(true);
+          }}
+          className="flex items-center justify-center space-x-2 px-5 py-3 rounded-xl bg-[#D4AF37] hover:bg-[#C9A227] text-black text-xs font-extrabold uppercase tracking-wider shadow-md transition-all shrink-0"
+        >
+          <Plus className="w-4 h-4" />
+          <span>+ Add Category</span>
+        </button>
       </div>
 
       {errorMsg && (
@@ -91,57 +109,6 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({
         </div>
       )}
 
-      {/* Add Category Form */}
-      <div className="bg-[#0D0D0D] rounded-2xl p-6 border border-zinc-800 shadow-md">
-        <h3 className="text-base font-serif font-bold text-white mb-4 flex items-center space-x-2">
-          <Plus className="w-4 h-4 text-[#D4AF37]" />
-          <span>Create New Category</span>
-        </h3>
-
-        <form onSubmit={handleAddSubmit} className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
-          <div>
-            <label className="block text-xs font-bold text-[#D4AF37] uppercase tracking-wider mb-1.5">
-              Category Name <span className="text-rose-500">*</span>
-            </label>
-            <input
-              id="new-category-name-input"
-              type="text"
-              required
-              placeholder="e.g. Ethnic Wear, Kurtas, Blazers"
-              value={newCatName}
-              onChange={(e) => setNewCatName(e.target.value)}
-              className="w-full px-4 py-2.5 bg-[#141414] border border-zinc-800 rounded-xl text-xs sm:text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-[#D4AF37]"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-[#D4AF37] uppercase tracking-wider mb-1.5">
-              Description (Optional)
-            </label>
-            <input
-              id="new-category-desc-input"
-              type="text"
-              placeholder="e.g. Traditional Indian wedding and festive clothing"
-              value={newCatDesc}
-              onChange={(e) => setNewCatDesc(e.target.value)}
-              className="w-full px-4 py-2.5 bg-[#141414] border border-zinc-800 rounded-xl text-xs sm:text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-[#D4AF37]"
-            />
-          </div>
-
-          <div>
-            <button
-              id="create-category-btn"
-              type="submit"
-              disabled={isAdding}
-              className="w-full py-2.5 px-4 rounded-xl bg-[#D4AF37] hover:bg-[#C9A227] text-black text-xs font-extrabold uppercase tracking-wider shadow-sm transition-all flex items-center justify-center space-x-1.5"
-            >
-              <Plus className="w-4 h-4" />
-              <span>{isAdding ? 'Adding...' : 'Add Category'}</span>
-            </button>
-          </div>
-        </form>
-      </div>
-
       {/* Categories List */}
       <div className="bg-[#0D0D0D] rounded-2xl border border-zinc-800 overflow-hidden shadow-md">
         <div className="p-4 sm:p-6 border-b border-zinc-800 flex items-center justify-between">
@@ -150,13 +117,21 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({
             <span>All Categories ({categories.length})</span>
           </h3>
           <span className="text-xs text-zinc-400 font-medium">
-            Includes product safety checks
+            Active clothing categories
           </span>
         </div>
 
         {categories.length === 0 ? (
-          <div className="p-8 text-center text-zinc-500 text-sm">
-            No categories found. Use the form above to add your first category.
+          <div className="p-12 text-center text-zinc-500 text-sm flex flex-col items-center">
+            <FolderPlus className="w-10 h-10 text-[#D4AF37] mb-3 opacity-60" />
+            <p className="font-semibold text-white mb-1">No categories added yet</p>
+            <p className="text-xs text-zinc-400 mb-4">Click below to create your first category.</p>
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="px-4 py-2 rounded-xl bg-[#D4AF37] text-black text-xs font-bold uppercase tracking-wider"
+            >
+              + Add First Category
+            </button>
           </div>
         ) : (
           <div className="divide-y divide-zinc-800/60">
@@ -249,6 +224,76 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({
           </div>
         )}
       </div>
+
+      {/* Small Add Category Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-[#0D0D0D] rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#D4AF37]/40 text-white space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+              <h3 className="text-lg font-serif font-black text-white flex items-center space-x-2">
+                <Plus className="w-5 h-5 text-[#D4AF37]" />
+                <span>Add Category</span>
+              </h3>
+              <button
+                onClick={() => setIsAddModalOpen(false)}
+                className="text-zinc-400 hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#D4AF37] uppercase tracking-wider mb-1.5">
+                  Category Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  id="modal-category-name-input"
+                  type="text"
+                  required
+                  placeholder="e.g. Sarees, Dresses, Kurtas"
+                  value={newCatName}
+                  onChange={(e) => setNewCatName(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-[#141414] border border-zinc-800 rounded-xl text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-[#D4AF37]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#D4AF37] uppercase tracking-wider mb-1.5">
+                  Description (Optional)
+                </label>
+                <input
+                  id="modal-category-desc-input"
+                  type="text"
+                  placeholder="e.g. Traditional and ethnic sarees collection"
+                  value={newCatDesc}
+                  onChange={(e) => setNewCatDesc(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-[#141414] border border-zinc-800 rounded-xl text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-[#D4AF37]"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-zinc-800 flex items-center justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-zinc-800 text-xs font-bold uppercase tracking-wider text-zinc-300 hover:bg-[#1A1A1A]"
+                >
+                  Cancel
+                </button>
+                <button
+                  id="modal-save-category-btn"
+                  type="submit"
+                  disabled={isAdding}
+                  className="px-5 py-2 rounded-xl bg-[#D4AF37] hover:bg-[#C9A227] text-black text-xs font-extrabold uppercase tracking-wider shadow-md"
+                >
+                  {isAdding ? 'Saving...' : 'Save Category'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+

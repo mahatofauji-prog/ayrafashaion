@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Building2,
   Phone,
@@ -12,16 +12,21 @@ import {
   KeyRound,
   CheckCircle2,
   AlertCircle,
+  ExternalLink,
+  Upload,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { auth } from '../../firebase/config';
 import { BusinessProfile } from '../../types';
+import { uploadProductImage } from '../../firebase/services';
 
 interface BusinessSettingsProps {
   businessProfile: BusinessProfile;
   onSaveProfile: (updates: Partial<BusinessProfile>) => Promise<void>;
   onResetSeedData: () => Promise<void>;
   onShareCatalogue: () => void;
+  onOpenCatalogue?: () => void;
   onShowToast: (msg: string, type?: 'success' | 'info' | 'error') => void;
 }
 
@@ -30,6 +35,7 @@ export const BusinessSettings: React.FC<BusinessSettingsProps> = ({
   onSaveProfile,
   onResetSeedData,
   onShareCatalogue,
+  onOpenCatalogue,
   onShowToast,
 }) => {
   const [businessName, setBusinessName] = useState(businessProfile.businessName);
@@ -42,6 +48,8 @@ export const BusinessSettings: React.FC<BusinessSettingsProps> = ({
 
   const [isSaving, setIsSaving] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   // Password Change State
   const [currentPassword, setCurrentPassword] = useState('');
@@ -50,6 +58,22 @@ export const BusinessSettings: React.FC<BusinessSettingsProps> = ({
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingLogo(true);
+    try {
+      const uploadedUrl = await uploadProductImage(file);
+      setLogoUrl(uploadedUrl);
+      onShowToast('New logo processed successfully!', 'success');
+    } catch (err) {
+      onShowToast('Failed to upload logo image', 'error');
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  };
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -173,12 +197,12 @@ export const BusinessSettings: React.FC<BusinessSettingsProps> = ({
             <h3 className="text-xl font-serif font-bold text-white mt-1">
               {businessName} Digital Catalogue Link
             </h3>
-            <p className="text-xs text-zinc-400 mt-1">
-              Share this link with customers on WhatsApp, Instagram, SMS, or QR codes.
+            <p className="text-xs text-zinc-400 mt-1 font-mono">
+              {window.location.origin}
             </p>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-wrap items-center gap-2.5">
             <button
               onClick={handleCopyLink}
               className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-[#D4AF37] text-black hover:bg-[#C9A227] text-xs font-extrabold uppercase tracking-wider transition-all shadow-md"
@@ -187,12 +211,71 @@ export const BusinessSettings: React.FC<BusinessSettingsProps> = ({
               <span>Copy Link</span>
             </button>
 
+            {onOpenCatalogue && (
+              <button
+                onClick={onOpenCatalogue}
+                className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-[#141414] hover:bg-[#1A1A1A] text-white text-xs font-extrabold uppercase tracking-wider transition-all border border-[#D4AF37]/40"
+              >
+                <ExternalLink className="w-4 h-4 text-[#D4AF37]" />
+                <span>Open Catalogue</span>
+              </button>
+            )}
+
             <button
               onClick={onShareCatalogue}
               className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-[#18181B] hover:bg-[#222] text-white text-xs font-extrabold uppercase tracking-wider transition-all border border-zinc-800"
             >
               <Share2 className="w-4 h-4 text-[#D4AF37]" />
               <span>Share</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Business Logo Box */}
+      <div className="bg-[#0D0D0D] text-white rounded-3xl p-6 sm:p-8 shadow-md border border-zinc-800 space-y-4">
+        <h3 className="text-lg font-serif font-black text-white pb-3 border-b border-zinc-800 flex items-center space-x-2">
+          <ImageIcon className="w-5 h-5 text-[#D4AF37]" />
+          <span>Business Logo</span>
+        </h3>
+
+        <div className="flex flex-col sm:flex-row items-center gap-6 pt-2">
+          {/* Logo Preview */}
+          <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-[#D4AF37] bg-[#141414] shrink-0 shadow-lg flex items-center justify-center">
+            {logoUrl ? (
+              <img src={logoUrl} alt="Store Logo" className="w-full h-full object-cover" />
+            ) : (
+              <span className="font-serif font-bold text-2xl text-[#D4AF37]">AYRA</span>
+            )}
+            {isUploadingLogo && (
+              <div className="absolute inset-0 bg-black/80 flex items-center justify-center text-xs text-[#D4AF37] font-bold">
+                Uploading...
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2 text-center sm:text-left">
+            <h4 className="text-sm font-bold text-white">Current Logo Preview</h4>
+            <p className="text-xs text-zinc-400">
+              This logo is displayed in the header and public catalogue.
+            </p>
+
+            <input
+              type="file"
+              ref={logoInputRef}
+              onChange={handleLogoUpload}
+              accept="image/*"
+              className="hidden"
+            />
+
+            <button
+              type="button"
+              onClick={() => logoInputRef.current?.click()}
+              disabled={isUploadingLogo}
+              className="inline-flex items-center space-x-2 px-4 py-2 rounded-xl bg-[#18181B] hover:bg-[#222] text-zinc-200 text-xs font-bold uppercase tracking-wider border border-zinc-700 hover:border-[#D4AF37]/50 transition-colors"
+            >
+              <Upload className="w-3.5 h-3.5 text-[#D4AF37]" />
+              <span>{isUploadingLogo ? 'Uploading...' : 'Change Logo'}</span>
             </button>
           </div>
         </div>
