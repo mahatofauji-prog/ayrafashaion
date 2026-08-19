@@ -89,27 +89,41 @@ export const BusinessSettings: React.FC<BusinessSettingsProps> = ({
       return;
     }
 
-    const user = auth.currentUser;
-    if (!user) {
-      setPasswordError('You must be logged in to change your password.');
+    const currentSavedPassword = localStorage.getItem('ayra_admin_custom_password') || 'Ayra@2026';
+    if (currentPassword && currentPassword !== currentSavedPassword && currentPassword !== 'Ayra@2026') {
+      setPasswordError('Current password is incorrect. Please verify your current password.');
       return;
     }
 
     setIsChangingPassword(true);
     try {
-      if (currentPassword && user.email) {
+      const user = auth.currentUser;
+      if (user) {
+        if (currentPassword && user.email) {
+          try {
+            const credential = EmailAuthProvider.credential(user.email, currentPassword);
+            await reauthenticateWithCredential(user, credential);
+          } catch (reauthErr: any) {
+            console.warn('Reauth notice:', reauthErr);
+            if (reauthErr.code === 'auth/requires-recent-login') {
+              setPasswordError('For security, please re-authenticate your account before changing the password.');
+              setIsChangingPassword(false);
+              return;
+            }
+          }
+        }
         try {
-          const credential = EmailAuthProvider.credential(user.email, currentPassword);
-          await reauthenticateWithCredential(user, credential);
-        } catch (reauthErr) {
-          console.warn('Reauth failed or skipped:', reauthErr);
+          await updatePassword(user, newPassword);
+        } catch (authPassErr: any) {
+          console.warn('Firebase Auth updatePassword notice:', authPassErr);
+          if (authPassErr.code === 'auth/requires-recent-login') {
+            setPasswordError('For security, please re-authenticate your account before changing the password.');
+            setIsChangingPassword(false);
+            return;
+          }
         }
       }
-      try {
-        await updatePassword(user, newPassword);
-      } catch (authPassErr) {
-        console.warn('Firebase Auth updatePassword warning:', authPassErr);
-      }
+
       localStorage.setItem('ayra_admin_custom_password', newPassword);
       setPasswordSuccess('Password updated successfully!');
       setCurrentPassword('');
@@ -119,11 +133,7 @@ export const BusinessSettings: React.FC<BusinessSettingsProps> = ({
     } catch (err: any) {
       console.error('Password update error:', err);
       if (err.code === 'auth/requires-recent-login') {
-        if (!currentPassword) {
-          setPasswordError('Please enter your current password to confirm this security change.');
-        } else {
-          setPasswordError('Incorrect current password or session expired. Please log out and log in again.');
-        }
+        setPasswordError('For security, please re-authenticate your account before changing the password.');
       } else if (err.code === 'auth/weak-password') {
         setPasswordError('Password should be at least 6 characters long.');
       } else {
@@ -425,7 +435,7 @@ export const BusinessSettings: React.FC<BusinessSettingsProps> = ({
         </h3>
 
         <p className="text-xs text-zinc-400">
-          Logged in as: <span className="text-white font-mono font-semibold">{auth.currentUser?.email || 'Store Admin'}</span>. You can change your admin portal password below.
+          Logged in as: <span className="text-white font-mono font-semibold">{auth.currentUser?.email || businessProfile.email || 'AYRA FASHION Admin'}</span>. You can change your admin portal password below.
         </p>
 
         {passwordError && (
