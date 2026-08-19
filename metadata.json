@@ -1,0 +1,6 @@
+{
+  "name": "AYRA FASHION",
+  "description": "Product Catalogue Management Software for AYRA FASHION clothing store with real-time catalogue and WhatsApp enquiries.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

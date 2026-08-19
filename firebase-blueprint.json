@@ -1,0 +1,165 @@
+{
+  "entities": {
+    "Business": {
+      "title": "Business",
+      "description": "Business profile and settings for AYRA FASHION catalogue",
+      "type": "object",
+      "properties": {
+        "businessName": {
+          "type": "string",
+          "description": "Name of the business",
+          "maxLength": 100
+        },
+        "businessType": {
+          "type": "string",
+          "description": "Type of business / store tagline",
+          "maxLength": 100
+        },
+        "logoUrl": {
+          "type": "string",
+          "description": "URL to business logo image",
+          "maxLength": 1000
+        },
+        "email": {
+          "type": "string",
+          "description": "Contact email address",
+          "maxLength": 100
+        },
+        "whatsapp": {
+          "type": "string",
+          "description": "WhatsApp contact number with country code",
+          "maxLength": 30
+        },
+        "contactNumber": {
+          "type": "string",
+          "description": "Phone call contact number",
+          "maxLength": 30
+        },
+        "catalogueSlug": {
+          "type": "string",
+          "description": "Unique URL slug for public catalogue",
+          "maxLength": 50
+        },
+        "ownerUid": {
+          "type": "string",
+          "description": "UID of the business owner",
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp or server timestamp of creation"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp or server timestamp of last update"
+        }
+      },
+      "required": ["businessName", "whatsapp", "contactNumber", "catalogueSlug"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Clothing category in AYRA FASHION catalogue",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of clothing category",
+          "maxLength": 50
+        },
+        "slug": {
+          "type": "string",
+          "description": "URL friendly category slug",
+          "maxLength": 50
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional category description",
+          "maxLength": 200
+        },
+        "businessId": {
+          "type": "string",
+          "description": "ID or slug of the business",
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp of creation"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp of last update"
+        }
+      },
+      "required": ["name", "businessId"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Clothing product item in AYRA FASHION catalogue",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of clothing product",
+          "maxLength": 120
+        },
+        "price": {
+          "type": "number",
+          "description": "Price in INR (₹)"
+        },
+        "categoryId": {
+          "type": "string",
+          "description": "Identifier of the assigned category",
+          "maxLength": 128
+        },
+        "categoryName": {
+          "type": "string",
+          "description": "Name of category for fast display",
+          "maxLength": 50
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "Image URL of the product",
+          "maxLength": 1000
+        },
+        "description": {
+          "type": "string",
+          "description": "Product details and fabric specifications",
+          "maxLength": 1000
+        },
+        "availability": {
+          "type": "string",
+          "description": "Stock status",
+          "enum": ["Available", "Out of Stock"]
+        },
+        "businessId": {
+          "type": "string",
+          "description": "ID or slug of the business",
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Last update timestamp"
+        }
+      },
+      "required": ["name", "price", "categoryId", "availability", "businessId"]
+    }
+  },
+  "firestore": {
+    "/businesses/{businessId}": {
+      "schema": "Business",
+      "description": "Business profile documents"
+    },
+    "/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Clothing categories collection"
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Catalogue products collection"
+    }
+  }
+}
