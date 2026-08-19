@@ -13,9 +13,10 @@ import {
   updateProduct,
   deleteProduct,
   toggleProductAvailability,
+  getAdvertisementBanners,
 } from './firebase/services';
 import { DEFAULT_BUSINESS_PROFILE, INITIAL_CATEGORIES, INITIAL_PRODUCTS } from './firebase/seed';
-import { BusinessProfile, Category, Product } from './types';
+import { BusinessProfile, Category, Product, AdvertisementBanner } from './types';
 import { Navbar } from './components/Navbar';
 import { CatalogueView } from './components/public/CatalogueView';
 import { AdminLogin } from './components/admin/AdminLogin';
@@ -23,6 +24,7 @@ import { AdminDashboard } from './components/admin/AdminDashboard';
 import { ProductManagement } from './components/admin/ProductManagement';
 import { CategoryManagement } from './components/admin/CategoryManagement';
 import { BusinessSettings } from './components/admin/BusinessSettings';
+import { BannerManagement } from './components/admin/BannerManagement';
 import { ProductFormModal } from './components/admin/ProductFormModal';
 import { ConfirmationModal } from './components/common/ConfirmationModal';
 import { ToastContainer, ToastMessage } from './components/common/Toast';
@@ -33,6 +35,7 @@ type ViewMode =
   | 'admin-products'
   | 'admin-categories'
   | 'admin-settings'
+  | 'admin-banners'
   | 'admin-login';
 
 export default function App() {
@@ -44,6 +47,7 @@ export default function App() {
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile>(DEFAULT_BUSINESS_PROFILE);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [banner, setBanner] = useState<AdvertisementBanner | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   // Modals & Notifications
@@ -102,10 +106,11 @@ export default function App() {
   const loadCatalogueData = useCallback(async () => {
     setIsLoadingData(true);
     try {
-      const [profileData, categoriesData, productsData] = await Promise.all([
+      const [profileData, categoriesData, productsData, bannersData] = await Promise.all([
         getBusinessProfile(),
         getCategories(),
         getProducts(),
+        getAdvertisementBanners(),
       ]);
       const updatedProfile = {
         ...profileData,
@@ -114,6 +119,9 @@ export default function App() {
       setBusinessProfile(updatedProfile);
       setCategories(categoriesData);
       setProducts(productsData);
+
+      const activeBanner = bannersData.find((b) => b.isActive) || null;
+      setBanner(activeBanner);
     } catch (err) {
       console.error('Error loading initial catalogue data:', err);
       showToast('Could not sync with Firestore. Using offline mode.', 'info');
@@ -330,6 +338,7 @@ export default function App() {
             products={products}
             categories={categories}
             businessProfile={businessProfile}
+            banner={banner}
             onShareCatalogue={handleShareCatalogue}
             onShowToast={showToast}
           />
@@ -395,6 +404,18 @@ export default function App() {
             onResetSeedData={handleResetSeedData}
             onShareCatalogue={handleShareCatalogue}
             onOpenCatalogue={() => navigateTo('catalogue')}
+            onShowToast={showToast}
+          />
+        )}
+
+        {currentView === 'admin-banners' && (
+          <BannerManagement
+            currentBanner={banner}
+            onBannerUpdated={async () => {
+              const banners = await getAdvertisementBanners();
+              const active = banners.find((b) => b.isActive) || null;
+              setBanner(active);
+            }}
             onShowToast={showToast}
           />
         )}

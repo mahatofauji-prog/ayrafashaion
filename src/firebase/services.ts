@@ -10,13 +10,14 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage, handleFirestoreError, OperationType } from './config';
-import { BusinessProfile, Category, Product, AvailabilityStatus } from '../types';
+import { BusinessProfile, Category, Product, AvailabilityStatus, AdvertisementBanner } from '../types';
 import { DEFAULT_BUSINESS_PROFILE, INITIAL_CATEGORIES, INITIAL_PRODUCTS } from './seed';
 
 const BUSINESS_ID = 'ayra-fashion';
 const BUSINESSES_COL = 'businesses';
 const CATEGORIES_COL = 'categories';
 const PRODUCTS_COL = 'products';
+const BANNERS_COL = 'advertisementBanners';
 
 // ---- Business Profile Services ----
 
@@ -401,5 +402,124 @@ export async function uploadProductImage(
   } catch (error) {
     console.error('Image processing error:', error);
     throw new Error('Failed to process product image. Please try another image.');
+  }
+}
+
+// ---- Advertisement Banner Services ----
+
+export async function getAdvertisementBanners(): Promise<AdvertisementBanner[]> {
+  try {
+    const colRef = collection(db, BANNERS_COL);
+    const snap = await getDocs(colRef);
+    if (snap.empty) return [];
+
+    return snap.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...docSnap.data(),
+    })) as AdvertisementBanner[];
+  } catch (error) {
+    console.warn('Error fetching advertisement banners:', error);
+    return [];
+  }
+}
+
+export async function saveAdvertisementBanner(imageUrl: string): Promise<AdvertisementBanner> {
+  try {
+    const banners = await getAdvertisementBanners();
+    // Deactivate or replace existing active banner to maintain ONLY ONE active banner
+    for (const b of banners) {
+      if (b.isActive) {
+        try {
+          const docRef = doc(db, BANNERS_COL, b.id);
+          await updateDoc(docRef, { isActive: false, updatedAt: new Date().toISOString() });
+        } catch {}
+      }
+    }
+
+    const bannerId = `banner-ayra-${Date.now()}`;
+    const newBanner: AdvertisementBanner = {
+      id: bannerId,
+      businessId: BUSINESS_ID,
+      imageUrl,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const newDocRef = doc(db, BANNERS_COL, bannerId);
+    await setDoc(newDocRef, newBanner);
+    return newBanner;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `${BANNERS_COL}/new`);
+    throw error;
+  }
+}
+
+export async function deleteAdvertisementBanner(id: string): Promise<void> {
+  try {
+    const docRef = doc(db, BANNERS_COL, id);
+    await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `${BANNERS_COL}/${id}`);
+  }
+}
+
+export async function uploadBannerImage(
+  file: File,
+  onProgress?: (progress: number) => void
+): Promise<string> {
+  try {
+    if (onProgress) onProgress(15);
+    // Compress image up to 1920px max width for crisp 16:9 display
+    const compressedDataUrl = await compressImage(file, 1920, 0.9);
+    if (onProgress) onProgress(60);
+
+    try {
+      const filename = `banners/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      const storageRef = ref(storage, filename);
+
+      const response = await fetch(compressedDataUrl);
+      const blob = await response.blob();
+
+      const uploadTask = uploadBytesResumable(storageRef, blob);
+
+      const storagePromise = new Promise<string>((resolve) => {
+        uploadTask.on(
+          'state_changed',
+          (snapshot) => {
+            const pct = Math.round((snapshot.bytesTransferred / (snapshot.totalBytes || 1)) * 35) + 60;
+            if (onProgress) onProgress(Math.min(pct, 95));
+          },
+          (error) => {
+            console.warn('Firebase Storage upload notice for banner, using data URL:', error);
+            resolve(compressedDataUrl);
+          },
+          async () => {
+            try {
+              const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+              if (onProgress) onProgress(100);
+              resolve(downloadUrl);
+            } catch {
+              resolve(compressedDataUrl);
+            }
+          }
+        );
+      });
+
+      const timeoutPromise = new Promise<string>((resolve) => {
+        setTimeout(() => {
+          if (onProgress) onProgress(100);
+          resolve(compressedDataUrl);
+        }, 2500);
+      });
+
+      return await Promise.race([storagePromise, timeoutPromise]);
+    } catch {
+      if (onProgress) onProgress(100);
+      return compressedDataUrl;
+    }
+  } catch (error) {
+    console.error('Banner processing error:', error);
+    throw new Error('Failed to process banner image.');
   }
 }

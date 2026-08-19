@@ -146,6 +146,36 @@
         }
       },
       "required": ["name", "price", "categoryId", "availability", "businessId"]
+    },
+    "AdvertisementBanner": {
+      "title": "AdvertisementBanner",
+      "description": "Promotional banner image for AYRA FASHION catalogue",
+      "type": "object",
+      "properties": {
+        "businessId": {
+          "type": "string",
+          "description": "ID or slug of the business",
+          "maxLength": 128
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "Image URL of the advertisement banner",
+          "maxLength": 1000
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "Whether banner is currently displayed"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Last update timestamp"
+        }
+      },
+      "required": ["businessId", "imageUrl", "isActive"]
     }
   },
   "firestore": {
@@ -160,6 +190,10 @@
     "/products/{productId}": {
       "schema": "Product",
       "description": "Catalogue products collection"
+    },
+    "/advertisementBanners/{bannerId}": {
+      "schema": "AdvertisementBanner",
+      "description": "Advertisement banners collection"
     }
   }
 }

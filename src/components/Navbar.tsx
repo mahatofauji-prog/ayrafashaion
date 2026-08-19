@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   Layers,
   Settings,
+  Image as ImageIcon,
   Eye,
   LogOut,
   LogIn,
@@ -14,8 +15,8 @@ import {
 import { BusinessProfile } from '../types';
 
 interface NavbarProps {
-  currentView: 'catalogue' | 'admin-dashboard' | 'admin-products' | 'admin-categories' | 'admin-settings' | 'admin-login';
-  onNavigate: (view: 'catalogue' | 'admin-dashboard' | 'admin-products' | 'admin-categories' | 'admin-settings' | 'admin-login') => void;
+  currentView: 'catalogue' | 'admin-dashboard' | 'admin-products' | 'admin-categories' | 'admin-settings' | 'admin-banners' | 'admin-login';
+  onNavigate: (view: 'catalogue' | 'admin-dashboard' | 'admin-products' | 'admin-categories' | 'admin-settings' | 'admin-banners' | 'admin-login') => void;
   isAuthenticated: boolean;
   onLogout: () => void;
   businessProfile: BusinessProfile;
@@ -260,6 +261,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <Settings className="w-4 h-4" />
                     <span>Settings</span>
                   </button>
+                  <button
+                    id="nav-admin-banners"
+                    onClick={() => onNavigate('admin-banners')}
+                    className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+                      currentView === 'admin-banners'
+                        ? 'bg-[#D4AF37] text-black shadow-md'
+                        : 'text-zinc-300 hover:text-[#D4AF37]'
+                    }`}
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                    <span>Banner</span>
+                  </button>
                 </nav>
 
                 <button
@@ -359,6 +372,16 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <Settings className="w-4 h-4 mb-0.5" />
             <span>Settings</span>
+          </button>
+          <button
+            id="mobile-nav-banners"
+            onClick={() => onNavigate('admin-banners')}
+            className={`flex flex-col items-center py-1 px-3 rounded-lg text-[11px] font-bold uppercase tracking-wider ${
+              currentView === 'admin-banners' ? 'text-[#D4AF37] bg-[#D4AF37]/10' : 'text-zinc-400'
+            }`}
+          >
+            <ImageIcon className="w-4 h-4 mb-0.5" />
+            <span>Banner</span>
           </button>
         </div>
       )}

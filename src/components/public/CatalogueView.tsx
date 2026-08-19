@@ -14,12 +14,13 @@ import {
   Layers,
   Filter,
 } from 'lucide-react';
-import { Product, Category, BusinessProfile } from '../../types';
+import { Product, Category, BusinessProfile, AdvertisementBanner } from '../../types';
 
 interface CatalogueViewProps {
   products: Product[];
   categories: Category[];
   businessProfile: BusinessProfile;
+  banner?: AdvertisementBanner | null;
   onOpenProductDetails?: (product: Product) => void;
   onShareCatalogue: () => void;
   onShowToast: (msg: string, type?: 'success' | 'info' | 'error') => void;
@@ -29,6 +30,7 @@ export const CatalogueView: React.FC<CatalogueViewProps> = ({
   products,
   categories,
   businessProfile,
+  banner,
   onShareCatalogue,
   onShowToast,
 }) => {
@@ -159,7 +161,23 @@ export const CatalogueView: React.FC<CatalogueViewProps> = ({
       </section>
 
       {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Advertisement Banner (16:9 ratio, displayed if active banner exists) */}
+        {banner && banner.isActive && banner.imageUrl && (
+          <section id="public-advertisement-banner-section" className="w-full">
+            <div className="relative w-full aspect-[16/9] rounded-2xl sm:rounded-3xl border border-[#D4AF37]/40 shadow-2xl overflow-hidden bg-black group">
+              <img
+                src={banner.imageUrl}
+                alt={`${businessProfile.businessName} Advertisement Banner`}
+                className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-[1.01]"
+              />
+              <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md border border-[#D4AF37]/30 text-[#D4AF37] text-[10px] font-bold tracking-widest uppercase pointer-events-none">
+                Featured
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* Search and Category Navigation */}
         <div className="space-y-5 mb-8">
           {/* Search Bar */}

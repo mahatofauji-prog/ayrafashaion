@@ -38,6 +38,15 @@ export interface BusinessProfile {
   updatedAt?: string;
 }
 
+export interface AdvertisementBanner {
+  id: string;
+  businessId: string;
+  imageUrl: string;
+  createdAt: string;
+  updatedAt: string;
+  isActive: boolean;
+}
+
 export interface FirestoreErrorInfo {
   error: string;
   operationType: string;
