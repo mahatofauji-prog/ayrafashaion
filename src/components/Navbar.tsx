@@ -33,14 +33,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   const isAdminView = currentView.startsWith('admin') && currentView !== 'admin-login';
 
   return (
-    <header className="sticky top-0 z-40 bg-[#0B0B0B]/95 backdrop-blur-md border-b border-[#D4AF37]/30 transition-all">
-      {/* Top Announcement & Quick Contact Bar */}
-      <div className="bg-[#050505] text-zinc-300 text-xs py-1.5 px-4 border-b border-zinc-900">
+    <header className="relative w-full bg-[#0B0B0B] border-b border-[#D4AF37]/30 z-30 transition-all text-white shadow-lg">
+      {/* Top Announcement Bar for Desktop & Tablet */}
+      <div className="hidden sm:block bg-[#050505] text-zinc-300 text-xs py-1.5 px-4 border-b border-zinc-900">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <span className="inline-block w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse"></span>
             <span className="font-serif font-bold text-white tracking-wide">{businessProfile.businessName}</span>
-            <span className="hidden sm:inline text-zinc-400">• {businessProfile.businessType}</span>
+            <span className="text-zinc-400">• {businessProfile.businessType}</span>
           </div>
 
           <div className="flex items-center space-x-4">
@@ -50,8 +50,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="flex items-center space-x-1.5 text-zinc-300 hover:text-[#D4AF37] transition-colors"
             >
               <Phone className="w-3.5 h-3.5 text-[#D4AF37]" />
-              <span className="hidden md:inline font-mono">{businessProfile.contactNumber}</span>
-              <span className="md:hidden">Call</span>
+              <span className="font-mono">{businessProfile.contactNumber}</span>
             </a>
             <a
               id="header-whatsapp-link"
@@ -61,15 +60,122 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="flex items-center space-x-1 text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
             >
               <MessageCircle className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">WhatsApp Order</span>
-              <span className="md:hidden">WhatsApp</span>
+              <span>WhatsApp Order</span>
             </a>
           </div>
         </div>
       </div>
 
-      {/* Main Navbar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Mobile Header (Clean 2-Row Layout) */}
+      <div className="sm:hidden px-3 py-2 space-y-1.5 border-b border-zinc-900/60">
+        {/* Mobile Row 1: Brand & Direct Call / WhatsApp */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center space-x-2 cursor-pointer min-w-0" onClick={() => onNavigate('catalogue')}>
+            {businessProfile.logoUrl ? (
+              <img
+                src={businessProfile.logoUrl}
+                alt={businessProfile.businessName}
+                className="w-8 h-8 rounded-full object-cover border border-[#D4AF37] shrink-0"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-[#121212] border border-[#D4AF37] text-[#D4AF37] flex items-center justify-center font-serif text-sm font-bold shrink-0">
+                A
+              </div>
+            )}
+            <span className="font-serif font-black text-base tracking-wider text-white truncate">
+              {businessProfile.businessName}
+            </span>
+          </div>
+
+          {/* Quick Contact Links on Mobile Top Row */}
+          <div className="flex items-center space-x-1.5 shrink-0">
+            <a
+              id="header-call-link-mobile"
+              href={`tel:${businessProfile.contactNumber.replace(/[^0-9+]/g, '')}`}
+              className="px-2 py-1 rounded-md bg-[#141414] border border-zinc-800 text-[#D4AF37] text-[10px] font-bold flex items-center space-x-1"
+              title="Call Store"
+            >
+              <Phone className="w-3 h-3 text-[#D4AF37]" />
+              <span>Call</span>
+            </a>
+            <a
+              id="header-whatsapp-link-mobile"
+              href={`https://wa.me/${businessProfile.whatsapp.replace(/[^0-9]/g, '')}?text=Hello%20${encodeURIComponent(businessProfile.businessName)}%2C%20I%20have%20an%20enquiry.`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-2 py-1 rounded-md bg-emerald-950/80 border border-emerald-600/50 text-emerald-400 text-[10px] font-bold flex items-center space-x-1"
+              title="WhatsApp Store"
+            >
+              <MessageCircle className="w-3 h-3 fill-emerald-400" />
+              <span>WhatsApp</span>
+            </a>
+          </div>
+        </div>
+
+        {/* Mobile Row 2: Subtitle & Share / Login Buttons */}
+        <div className="flex items-center justify-between gap-2 pt-0.5">
+          <p className="text-[10px] text-[#D4AF37]/90 uppercase tracking-widest font-bold truncate">
+            {isAdminView ? 'Catalogue Management' : 'ALL TYPES CLOTHING STORE'}
+          </p>
+
+          <div className="flex items-center space-x-1.5 shrink-0">
+            {isAdminView ? (
+              <>
+                <button
+                  id="mobile-nav-view-public"
+                  onClick={() => onNavigate('catalogue')}
+                  className="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-[#D4AF37] bg-[#141414] border border-[#D4AF37]/40 flex items-center space-x-1"
+                >
+                  <Eye className="w-3 h-3 text-[#D4AF37]" />
+                  <span>Catalogue</span>
+                </button>
+                <button
+                  id="mobile-nav-logout"
+                  onClick={onLogout}
+                  className="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-rose-400 bg-rose-950/30 border border-rose-900/50 flex items-center space-x-1"
+                >
+                  <LogOut className="w-3 h-3" />
+                  <span>Logout</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  id="nav-share-catalogue"
+                  onClick={onShare}
+                  className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider text-[#D4AF37] bg-[#141414] border border-[#D4AF37]/40 flex items-center space-x-1"
+                >
+                  <Share2 className="w-3 h-3 text-[#D4AF37]" />
+                  <span>Share</span>
+                </button>
+
+                {isAuthenticated ? (
+                  <button
+                    id="nav-goto-dashboard"
+                    onClick={() => onNavigate('admin-dashboard')}
+                    className="px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-wider text-black bg-[#D4AF37] flex items-center space-x-1 shadow-sm"
+                  >
+                    <LayoutDashboard className="w-3 h-3" />
+                    <span>Admin</span>
+                  </button>
+                ) : (
+                  <button
+                    id="nav-owner-login"
+                    onClick={() => onNavigate('admin-login')}
+                    className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider text-zinc-300 border border-zinc-700 bg-[#121212] flex items-center space-x-1"
+                  >
+                    <LogIn className="w-3 h-3 text-[#D4AF37]" />
+                    <span>Login</span>
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop / Tablet Navbar Row */}
+      <div className="hidden sm:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
           {/* Logo & Brand */}
           <div className="flex items-center space-x-3 cursor-pointer" onClick={() => onNavigate('catalogue')}>
@@ -104,9 +210,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Navigation Links */}
           <div className="flex items-center space-x-2 sm:space-x-3">
             {isAdminView ? (
-              // Admin Navigation
               <>
-                <nav className="hidden md:flex items-center space-x-1 bg-[#121212] p-1 rounded-xl border border-[#D4AF37]/30">
+                <nav className="flex items-center space-x-1 bg-[#121212] p-1 rounded-xl border border-[#D4AF37]/30">
                   <button
                     id="nav-admin-dashboard"
                     onClick={() => onNavigate('admin-dashboard')}
@@ -163,35 +268,33 @@ export const Navbar: React.FC<NavbarProps> = ({
                   className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider text-[#D4AF37] bg-[#121212] hover:bg-[#18181B] border border-[#D4AF37]/40 transition-colors"
                 >
                   <Eye className="w-4 h-4 text-[#D4AF37]" />
-                  <span className="hidden sm:inline">Public Catalogue</span>
-                  <span className="sm:hidden">Catalogue</span>
+                  <span>Public Catalogue</span>
                 </button>
 
                 <button
                   id="nav-admin-logout"
                   onClick={onLogout}
                   title="Sign out of admin"
-                  className="p-2 sm:px-3 sm:py-2 rounded-xl text-xs font-bold uppercase tracking-wider text-rose-400 hover:bg-rose-950/40 border border-rose-900/50 transition-colors flex items-center space-x-1.5"
+                  className="px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider text-rose-400 hover:bg-rose-950/40 border border-rose-900/50 transition-colors flex items-center space-x-1.5"
                 >
                   <LogOut className="w-4 h-4" />
-                  <span className="hidden sm:inline">Sign Out</span>
+                  <span>Sign Out</span>
                 </button>
               </>
             ) : (
-              // Public Catalogue Navigation
               <>
                 <button
-                  id="nav-share-catalogue"
+                  id="nav-share-catalogue-desktop"
                   onClick={onShare}
                   className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider text-[#D4AF37] bg-[#121212] hover:bg-[#1A1A1A] border border-[#D4AF37]/30 transition-colors"
                 >
                   <Share2 className="w-4 h-4 text-[#D4AF37]" />
-                  <span className="hidden sm:inline">Share</span>
+                  <span>Share</span>
                 </button>
 
                 {isAuthenticated ? (
                   <button
-                    id="nav-goto-dashboard"
+                    id="nav-goto-dashboard-desktop"
                     onClick={() => onNavigate('admin-dashboard')}
                     className="flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-extrabold uppercase tracking-wider text-black bg-[#D4AF37] hover:bg-[#C9A227] transition-all shadow-md"
                   >
@@ -200,13 +303,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </button>
                 ) : (
                   <button
-                    id="nav-owner-login"
+                    id="nav-owner-login-desktop"
                     onClick={() => onNavigate('admin-login')}
                     className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider text-zinc-300 hover:text-white border border-zinc-700 hover:border-[#D4AF37]/50 hover:bg-[#121212] transition-colors"
                   >
                     <LogIn className="w-4 h-4 text-[#D4AF37]" />
-                    <span className="hidden sm:inline">Owner Login</span>
-                    <span className="sm:hidden">Login</span>
+                    <span>Owner Login</span>
                   </button>
                 )}
               </>

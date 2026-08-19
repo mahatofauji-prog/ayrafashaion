@@ -84,42 +84,42 @@ export const CatalogueView: React.FC<CatalogueViewProps> = ({
   return (
     <div className="min-h-screen bg-[#050505] text-[#F5F5F5] pb-24">
       {/* Top Banner / Store Hero Header */}
-      <section className="bg-[#0B0B0B] border-b border-[#D4AF37]/30 relative overflow-hidden">
+      <section className="relative w-full bg-[#0B0B0B] border-b border-[#D4AF37]/30 overflow-hidden">
         {/* Subtle background ambient glow */}
         <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-[#D4AF37]/5 rounded-full blur-3xl pointer-events-none"></div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 relative z-10">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            <div className="flex items-center space-x-4 sm:space-x-5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-[28px] pb-7 sm:py-10 relative z-10">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5 sm:gap-6">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-3.5 sm:gap-5">
               {businessProfile.logoUrl && (
                 <img
                   src={businessProfile.logoUrl}
                   alt={businessProfile.businessName}
-                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-2 border-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.25)] shrink-0"
+                  className="w-14 h-14 sm:w-20 sm:h-20 rounded-full object-cover border-2 border-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.25)] shrink-0"
                 />
               )}
               <div>
-                <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-[#161616] border border-[#D4AF37]/40 text-[#F1D77A] text-[11px] font-bold uppercase tracking-widest mb-2">
+                <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-[#161616] border border-[#D4AF37]/40 text-[#F1D77A] text-[10px] sm:text-[11px] font-bold uppercase tracking-widest mb-2">
                   <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
-                  <span>Official Luxury Catalogue</span>
+                  <span>OFFICIAL LUXURY CATALOGUE</span>
                 </div>
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-serif font-black tracking-wider text-white">
+                <h1 className="text-2xl sm:text-4xl lg:text-5xl font-serif font-black tracking-wider text-white">
                   {businessProfile.businessName}
                 </h1>
                 <p className="mt-1 text-xs sm:text-sm text-[#D4AF37] font-semibold tracking-widest uppercase">
-                  Premium Fashion • Timeless Style
+                  PREMIUM FASHION • TIMELESS STYLE
                 </p>
               </div>
             </div>
 
             {/* Direct Contact Action Buttons */}
-            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 sm:gap-3">
               <a
                 id="hero-whatsapp-btn"
                 href={`https://wa.me/${businessProfile.whatsapp.replace(/[^0-9]/g, '')}?text=Hello%20${encodeURIComponent(businessProfile.businessName)}%2C%20I%20am%20browsing%20your%20catalogue.`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center space-x-2 px-5 py-2.5 sm:py-3 rounded-xl bg-[#D4AF37] hover:bg-[#C9A227] active:bg-[#B8921A] text-black font-extrabold uppercase tracking-wider text-xs shadow-lg shadow-[#D4AF37]/15 transition-all"
+                className="flex items-center space-x-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl bg-[#D4AF37] hover:bg-[#C9A227] active:bg-[#B8921A] text-black font-extrabold uppercase tracking-wider text-xs shadow-lg shadow-[#D4AF37]/15 transition-all"
               >
                 <MessageCircle className="w-4 h-4 fill-black" />
                 <span>WhatsApp: {businessProfile.whatsapp}</span>
@@ -128,7 +128,7 @@ export const CatalogueView: React.FC<CatalogueViewProps> = ({
               <a
                 id="hero-call-btn"
                 href={`tel:${businessProfile.contactNumber.replace(/[^0-9+]/g, '')}`}
-                className="flex items-center space-x-2 px-4 py-2.5 sm:py-3 rounded-xl bg-[#121212] hover:bg-[#1A1A1A] text-zinc-200 font-bold uppercase tracking-wider border border-zinc-800 hover:border-[#D4AF37]/50 transition-colors text-xs"
+                className="flex items-center space-x-2 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-[#121212] hover:bg-[#1A1A1A] text-zinc-200 font-bold uppercase tracking-wider border border-zinc-800 hover:border-[#D4AF37]/50 transition-colors text-xs"
               >
                 <Phone className="w-4 h-4 text-[#D4AF37]" />
                 <span>Call Us</span>
@@ -137,7 +137,7 @@ export const CatalogueView: React.FC<CatalogueViewProps> = ({
               <button
                 id="hero-share-catalogue-btn"
                 onClick={onShareCatalogue}
-                className="flex items-center space-x-2 px-4 py-2.5 sm:py-3 rounded-xl bg-[#121212] hover:bg-[#1A1A1A] text-zinc-200 font-bold uppercase tracking-wider border border-zinc-800 hover:border-[#D4AF37]/50 transition-colors text-xs"
+                className="flex items-center space-x-2 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-[#121212] hover:bg-[#1A1A1A] text-zinc-200 font-bold uppercase tracking-wider border border-zinc-800 hover:border-[#D4AF37]/50 transition-colors text-xs"
               >
                 <Share2 className="w-4 h-4 text-[#D4AF37]" />
                 <span>Share</span>
@@ -146,14 +146,12 @@ export const CatalogueView: React.FC<CatalogueViewProps> = ({
           </div>
 
           {/* Decorative Divider Line */}
-          <div className="mt-6 pt-4 border-t border-zinc-900 flex flex-wrap items-center justify-between gap-4 text-xs text-zinc-400">
-            <div className="flex items-center space-x-4">
-              <span className="flex items-center space-x-1.5">
-                <Mail className="w-3.5 h-3.5 text-[#D4AF37]" />
-                <span className="text-zinc-300 font-mono">{businessProfile.email}</span>
-              </span>
+          <div className="mt-5 sm:mt-6 pt-3.5 sm:pt-4 border-t border-zinc-900 flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-4 text-xs text-zinc-400 text-center sm:text-left">
+            <div className="flex items-center space-x-2">
+              <Mail className="w-3.5 h-3.5 text-[#D4AF37]" />
+              <span className="text-zinc-300 font-mono text-[11px] sm:text-xs">{businessProfile.email}</span>
             </div>
-            <div className="text-zinc-400 font-medium">
+            <div className="text-zinc-400 text-[11px] sm:text-xs font-medium">
               Browse collection below & click WhatsApp for direct orders.
             </div>
           </div>
