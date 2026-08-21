@@ -296,7 +296,9 @@ export const CatalogueView: React.FC<CatalogueViewProps> = ({
                     {/* Bottom Section: Price -> Order Now Button */}
                     <div className="mt-3 pt-2.5 border-t border-zinc-800/80 flex flex-col gap-2">
                       <div>
-                        <span className="text-[9px] sm:text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">PRICE</span>
+                        <span className="text-[9px] sm:text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">
+                          STARTING FROM
+                        </span>
                         <span className="text-sm sm:text-lg font-black text-[#D4AF37]">
                           ₹{product.price.toLocaleString('en-IN')}
                         </span>
@@ -368,24 +370,29 @@ export const CatalogueView: React.FC<CatalogueViewProps> = ({
                   {selectedProduct.name}
                 </h2>
 
-                <div className="mt-4 flex items-baseline space-x-3">
-                  <span className="text-2xl sm:text-3xl font-extrabold text-[#D4AF37]">
-                    ₹{selectedProduct.price.toLocaleString('en-IN')}
+                <div className="mt-4 flex flex-col gap-1">
+                  <span className="text-[10px] sm:text-xs text-zinc-400 font-bold uppercase tracking-wider">
+                    STARTING FROM
                   </span>
-                  <span
-                    className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-                      selectedProduct.availability === 'Available'
-                        ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/50'
-                        : 'bg-rose-950 text-rose-400 border border-rose-500/50'
-                    }`}
-                  >
-                    {selectedProduct.availability === 'Available' ? (
-                      <CheckCircle className="w-3.5 h-3.5" />
-                    ) : (
-                      <XCircle className="w-3.5 h-3.5" />
-                    )}
-                    <span>{selectedProduct.availability}</span>
-                  </span>
+                  <div className="flex items-baseline space-x-3">
+                    <span className="text-2xl sm:text-3xl font-extrabold text-[#D4AF37]">
+                      ₹{selectedProduct.price.toLocaleString('en-IN')}
+                    </span>
+                    <span
+                      className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${
+                        selectedProduct.availability === 'Available'
+                          ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/50'
+                          : 'bg-rose-950 text-rose-400 border border-rose-500/50'
+                      }`}
+                    >
+                      {selectedProduct.availability === 'Available' ? (
+                        <CheckCircle className="w-3.5 h-3.5" />
+                      ) : (
+                        <XCircle className="w-3.5 h-3.5" />
+                      )}
+                      <span>{selectedProduct.availability}</span>
+                    </span>
+                  </div>
                 </div>
 
                 <div className="mt-6">
