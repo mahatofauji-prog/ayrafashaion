@@ -42,7 +42,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="flex items-center space-x-2">
             <span className="inline-block w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse"></span>
             <BrandName name={businessProfile.businessName} className="font-bold tracking-[0.14em] text-xs" />
-            <span className="text-zinc-400">• {businessProfile.businessType}</span>
+            <span className="text-zinc-400">• Men • Women • Kids • “The Style House”</span>
           </div>
 
           <div className="flex items-center space-x-4">
@@ -117,9 +117,20 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Mobile Row 2: Subtitle & Share / Login Buttons */}
         <div className="flex items-center justify-between gap-2 pt-0.5">
-          <p className="text-[10px] text-[#D4AF37]/90 uppercase tracking-widest font-bold truncate">
-            {isAdminView ? 'Catalogue Management' : 'ALL TYPES CLOTHING STORE'}
-          </p>
+          {isAdminView ? (
+            <p className="text-[10px] text-[#D4AF37]/90 uppercase tracking-widest font-bold truncate">
+              Catalogue Management
+            </p>
+          ) : (
+            <div className="leading-tight flex flex-col">
+              <span className="text-[10px] text-[#D4AF37] uppercase tracking-wider font-bold">
+                Men • Women • Kids
+              </span>
+              <span className="text-[9px] text-[#F1D77A]/90 font-serif italic tracking-widest mt-0.5">
+                “The Style House”
+              </span>
+            </div>
+          )}
 
           <div className="flex items-center space-x-1.5 shrink-0">
             {isAdminView ? (
@@ -182,9 +193,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </span>
                 )}
               </div>
-              <p className="text-[11px] sm:text-xs text-[#D4AF37]/80 uppercase tracking-widest font-semibold">
-                {isAdminView ? 'Catalogue Management' : 'ALL TYPES CLOTHING STORE'}
-              </p>
+              {isAdminView ? (
+                <p className="text-[11px] sm:text-xs text-[#D4AF37]/80 uppercase tracking-widest font-semibold mt-0.5">
+                  Catalogue Management
+                </p>
+              ) : (
+                <div className="mt-0.5 leading-tight flex flex-col">
+                  <span className="text-[11px] sm:text-xs text-[#D4AF37] font-semibold tracking-wider uppercase">
+                    Men • Women • Kids
+                  </span>
+                  <span className="text-[10px] sm:text-[11px] text-[#F1D77A]/90 font-serif italic tracking-widest mt-0.5">
+                    “The Style House”
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 

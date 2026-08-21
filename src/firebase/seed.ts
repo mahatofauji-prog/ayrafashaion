@@ -3,7 +3,7 @@ import { BusinessProfile, Category, Product } from '../types';
 export const DEFAULT_BUSINESS_PROFILE: BusinessProfile = {
   id: 'ayra-fashion',
   businessName: 'AYRA FASHION',
-  businessType: 'All Types Clothing Store',
+  businessType: 'Men • Women • Kids — “The Style House”',
   logoUrl: '/logo.jpg',
   email: 'ayra.fashion.assam@gmail.com',
   whatsapp: '+91 91275 86750',

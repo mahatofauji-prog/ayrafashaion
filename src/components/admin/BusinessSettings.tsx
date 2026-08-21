@@ -326,7 +326,7 @@ export const BusinessSettings: React.FC<BusinessSettingsProps> = ({
               required
               value={businessType}
               onChange={(e) => setBusinessType(e.target.value)}
-              placeholder="e.g. All Types Clothing Store"
+              placeholder="e.g. Men • Women • Kids — “The Style House”"
               className="w-full px-4 py-2.5 bg-[#141414] border border-zinc-800 rounded-xl text-sm text-white focus:outline-none focus:border-[#D4AF37]"
             />
           </div>

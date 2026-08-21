@@ -470,9 +470,14 @@ export const CatalogueView: React.FC<CatalogueViewProps> = ({
             <h3 className="text-xl tracking-[0.2em]">
               <BrandName name={businessProfile.businessName} className="font-black text-xl" />
             </h3>
-            <p className="text-xs text-[#D4AF37] font-semibold tracking-widest uppercase mt-1">
-              {businessProfile.businessType}
-            </p>
+            <div className="mt-1 leading-tight flex flex-col">
+              <span className="text-xs text-[#D4AF37] font-semibold tracking-wider uppercase">
+                Men • Women • Kids
+              </span>
+              <span className="text-[11px] text-[#F1D77A]/90 font-serif italic tracking-widest mt-0.5">
+                “The Style House”
+              </span>
+            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row items-center gap-6 text-xs text-zinc-400">
