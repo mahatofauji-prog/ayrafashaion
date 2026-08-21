@@ -80,7 +80,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
               }}
             />
           </div>
-          <h2 className="text-2xl font-serif font-black text-white tracking-wide">
+          <h2 className="text-2xl font-brand-logo font-black text-white tracking-[0.2em]">
             {businessProfile.businessName}
           </h2>
           <p className="text-xs text-[#D4AF37] font-semibold uppercase tracking-widest mt-1">

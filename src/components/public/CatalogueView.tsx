@@ -459,7 +459,7 @@ export const CatalogueView: React.FC<CatalogueViewProps> = ({
       <footer className="mt-20 border-t border-[#D4AF37]/20 bg-[#070707] py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8 text-center md:text-left">
           <div>
-            <h3 className="font-serif font-black text-xl text-white tracking-wider">
+            <h3 className="font-brand-logo font-black text-xl text-white tracking-[0.2em]">
               {businessProfile.businessName}
             </h3>
             <p className="text-xs text-[#D4AF37] font-semibold tracking-widest uppercase mt-1">

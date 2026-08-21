@@ -66,7 +66,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <span>•</span>
             <span className="text-emerald-400 font-semibold">Firestore Synced</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-serif font-black text-white">
+          <h2 className="text-2xl sm:text-3xl font-brand-logo font-black text-white tracking-[0.18em]">
             {businessProfile.businessName}
           </h2>
           <p className="text-xs sm:text-sm text-zinc-400 font-medium mt-1">

@@ -40,7 +40,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <span className="inline-block w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse"></span>
-            <span className="font-serif font-bold text-white tracking-wide">{businessProfile.businessName}</span>
+            <span className="font-brand-logo font-bold text-white tracking-[0.14em] text-xs">{businessProfile.businessName}</span>
             <span className="text-zinc-400">• {businessProfile.businessType}</span>
           </div>
 
@@ -79,11 +79,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="w-10 h-10 rounded-full object-cover border border-[#D4AF37] shrink-0"
               />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-[#121212] border border-[#D4AF37] text-[#D4AF37] flex items-center justify-center font-serif text-sm font-bold shrink-0">
+              <div className="w-10 h-10 rounded-full bg-[#121212] border border-[#D4AF37] text-[#D4AF37] flex items-center justify-center font-brand-logo text-sm font-bold shrink-0">
                 A
               </div>
             )}
-            <span className="font-serif font-black text-xs min-[360px]:text-sm sm:text-base tracking-wider text-white leading-tight uppercase whitespace-normal">
+            <span className="font-brand-logo font-black text-xs min-[360px]:text-sm sm:text-base tracking-[0.16em] text-white leading-tight uppercase whitespace-normal">
               {businessProfile.businessName}
             </span>
           </div>
@@ -165,13 +165,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="w-[60px] h-[60px] sm:w-[72px] sm:h-[72px] rounded-full object-cover border-2 border-[#D4AF37] shadow-[0_0_12px_rgba(212,175,55,0.25)] shrink-0"
               />
             ) : (
-              <div className="w-[60px] h-[60px] sm:w-[72px] sm:h-[72px] rounded-full bg-[#121212] border-2 border-[#D4AF37] text-[#D4AF37] flex items-center justify-center font-serif text-2xl sm:text-3xl font-bold tracking-tighter shrink-0">
+              <div className="w-[60px] h-[60px] sm:w-[72px] sm:h-[72px] rounded-full bg-[#121212] border-2 border-[#D4AF37] text-[#D4AF37] flex items-center justify-center font-brand-logo text-2xl sm:text-3xl font-bold tracking-tighter shrink-0">
                 A
               </div>
             )}
             <div>
               <div className="flex items-center space-x-2">
-                <h1 className="text-lg sm:text-2xl font-serif font-black tracking-wider text-white">
+                <h1 className="text-lg sm:text-2xl font-brand-logo font-black tracking-[0.2em] text-white">
                   {businessProfile.businessName}
                 </h1>
                 {isAdminView && (
