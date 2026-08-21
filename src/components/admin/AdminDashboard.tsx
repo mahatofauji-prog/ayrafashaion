@@ -14,6 +14,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { Product, Category, BusinessProfile } from '../../types';
+import { BrandName } from '../common/BrandName';
 
 interface AdminDashboardProps {
   products: Product[];
@@ -66,8 +67,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <span>•</span>
             <span className="text-emerald-400 font-semibold">Firestore Synced</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-brand-logo font-black text-white tracking-[0.18em]">
-            {businessProfile.businessName}
+          <h2 className="text-2xl sm:text-3xl tracking-[0.18em]">
+            <BrandName name={businessProfile.businessName} className="font-black text-2xl sm:text-3xl" />
           </h2>
           <p className="text-xs sm:text-sm text-zinc-400 font-medium mt-1">
             Product Catalogue Manager & WhatsApp Order Software

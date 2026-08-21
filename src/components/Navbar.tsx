@@ -13,6 +13,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { BusinessProfile } from '../types';
+import { BrandName } from './common/BrandName';
 
 interface NavbarProps {
   currentView: 'catalogue' | 'admin-dashboard' | 'admin-products' | 'admin-categories' | 'admin-settings' | 'admin-banners' | 'admin-login';
@@ -40,7 +41,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <span className="inline-block w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse"></span>
-            <span className="font-brand-logo font-bold text-white tracking-[0.14em] text-xs">{businessProfile.businessName}</span>
+            <BrandName name={businessProfile.businessName} className="font-bold tracking-[0.14em] text-xs" />
             <span className="text-zinc-400">• {businessProfile.businessType}</span>
           </div>
 
@@ -83,9 +84,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 A
               </div>
             )}
-            <span className="font-brand-logo font-black text-xs min-[360px]:text-sm sm:text-base tracking-[0.16em] text-white leading-tight uppercase whitespace-normal">
-              {businessProfile.businessName}
-            </span>
+            <BrandName
+              name={businessProfile.businessName}
+              className="font-black text-xs min-[360px]:text-sm sm:text-base tracking-[0.16em] leading-tight uppercase whitespace-normal"
+            />
           </div>
 
           {/* Quick Contact Links on Mobile Top Row */}
@@ -171,8 +173,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
             <div>
               <div className="flex items-center space-x-2">
-                <h1 className="text-lg sm:text-2xl font-brand-logo font-black tracking-[0.2em] text-white">
-                  {businessProfile.businessName}
+                <h1 className="text-lg sm:text-2xl tracking-[0.2em]">
+                  <BrandName name={businessProfile.businessName} className="font-black" />
                 </h1>
                 {isAdminView && (
                   <span className="px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase bg-[#D4AF37]/20 text-[#F1D77A] rounded border border-[#D4AF37]/40">

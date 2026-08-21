@@ -3,6 +3,7 @@ import { Lock, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 import { signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider } from '../../firebase/config';
 import { BusinessProfile } from '../../types';
+import { BrandName } from '../common/BrandName';
 
 interface AdminLoginProps {
   businessProfile: BusinessProfile;
@@ -80,8 +81,8 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
               }}
             />
           </div>
-          <h2 className="text-2xl font-brand-logo font-black text-white tracking-[0.2em]">
-            {businessProfile.businessName}
+          <h2 className="text-2xl tracking-[0.2em]">
+            <BrandName name={businessProfile.businessName} className="font-black text-2xl" />
           </h2>
           <p className="text-xs text-[#D4AF37] font-semibold uppercase tracking-widest mt-1">
             Store Owner / Admin Portal
