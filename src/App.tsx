@@ -298,9 +298,24 @@ export default function App() {
 
   // Business Profile Settings
   const handleSaveBusinessProfile = async (updates: Partial<BusinessProfile>) => {
-    await updateBusinessProfile(updates);
-    setBusinessProfile((prev) => ({ ...prev, ...updates }));
-    showToast('Business details updated successfully!', 'success');
+    try {
+      await updateBusinessProfile(updates);
+      setBusinessProfile((prev) => {
+        const next = { ...prev, ...updates };
+        setCachedData('profile', next);
+        return next;
+      });
+      await loadCatalogueData(true);
+      showToast('Business details updated successfully!', 'success');
+    } catch (err: any) {
+      console.error('[UI ERROR] Failed to save business profile:', err);
+      let errorMsg = err.message;
+      try {
+        const parsed = JSON.parse(err.message);
+        if (parsed && parsed.error) errorMsg = parsed.error;
+      } catch {}
+      showToast('Failed to save business details: ' + errorMsg, 'error');
+    }
   };
 
   // Reset Demo Catalogue

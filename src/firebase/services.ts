@@ -38,8 +38,8 @@ export async function getBusinessProfile(): Promise<BusinessProfile> {
       return initialData;
     }
   } catch (error) {
-    console.warn('Failed to load business profile from Firestore, using default profile:', error);
-    return DEFAULT_BUSINESS_PROFILE;
+    console.error('[ERROR] Failed to load business profile from Firestore:', error);
+    return handleFirestoreError(error, OperationType.GET, `${BUSINESSES_COL}/${BUSINESS_ID}`);
   }
 }
 
@@ -81,12 +81,8 @@ export async function getCategories(): Promise<Category[]> {
       ...docSnap.data()
     })) as Category[];
   } catch (error) {
-    console.warn('Error fetching categories, falling back to initial data:', error);
-    return INITIAL_CATEGORIES.map(c => ({
-      ...c,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }));
+    console.error('[ERROR] Error fetching categories from Firestore:', error);
+    return handleFirestoreError(error, OperationType.LIST, CATEGORIES_COL);
   }
 }
 
@@ -224,19 +220,8 @@ export async function getProducts(): Promise<Product[]> {
     // Sort by createdAt descending
     return combined.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   } catch (error) {
-    console.warn('Error fetching products from Firestore, using cached/initial data:', error);
-    const fallback = INITIAL_PRODUCTS.map(p => ({
-      ...p,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }));
-    const combined = [...fallback];
-    for (const lp of localItems) {
-      if (!combined.some(p => p.id === lp.id)) {
-        combined.push(lp);
-      }
-    }
-    return combined.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    console.error('[ERROR] Error fetching products from Firestore:', error);
+    return handleFirestoreError(error, OperationType.LIST, PRODUCTS_COL);
   }
 }
 
@@ -492,8 +477,8 @@ export async function getAdvertisementBanners(): Promise<AdvertisementBanner[]> 
       displayOrder: typeof item.displayOrder === 'number' ? item.displayOrder : idx,
     }));
   } catch (error) {
-    console.warn('Error fetching advertisement banners:', error);
-    return [];
+    console.error('[ERROR] Error fetching advertisement banners from Firestore:', error);
+    return handleFirestoreError(error, OperationType.LIST, BANNERS_COL);
   }
 }
 
