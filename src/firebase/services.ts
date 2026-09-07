@@ -253,14 +253,17 @@ export async function addProduct(product: Omit<Product, 'id' | 'businessId' | 'c
     updatedAt: new Date().toISOString(),
   };
 
-  // Always update local cache
+  // Always update local cache for quick loading
   const currentLocals = getLocalCustomProducts();
   saveLocalCustomProducts([newProduct, ...currentLocals]);
 
   try {
+    console.log('[DEBUG] Writing product document to Firestore:', id, newProduct);
     await setDoc(doc(db, PRODUCTS_COL, id), newProduct);
+    console.log('[DEBUG] Firestore product write successful!');
   } catch (error) {
-    console.warn('Firestore write notice (product saved locally):', error);
+    console.error('[ERROR] Firestore product write failed:', error);
+    handleFirestoreError(error, OperationType.WRITE, `${PRODUCTS_COL}/${id}`);
   }
   return newProduct;
 }
@@ -274,13 +277,16 @@ export async function updateProduct(id: string, updates: Partial<Product>): Prom
   }
 
   try {
+    console.log('[DEBUG] Updating product document in Firestore:', id, updates);
     const prodRef = doc(db, PRODUCTS_COL, id);
     await updateDoc(prodRef, {
       ...updates,
       updatedAt: new Date().toISOString(),
     });
+    console.log('[DEBUG] Firestore product update successful!');
   } catch (error) {
-    console.warn('Firestore update notice (updated locally):', error);
+    console.error('[ERROR] Firestore product update failed:', error);
+    handleFirestoreError(error, OperationType.UPDATE, `${PRODUCTS_COL}/${id}`);
   }
 }
 
@@ -289,9 +295,12 @@ export async function deleteProduct(id: string): Promise<void> {
   saveLocalCustomProducts(currentLocals.filter(p => p.id !== id));
 
   try {
+    console.log('[DEBUG] Deleting product document from Firestore:', id);
     await deleteDoc(doc(db, PRODUCTS_COL, id));
+    console.log('[DEBUG] Firestore product deletion successful!');
   } catch (error) {
-    console.warn('Firestore delete notice (deleted locally):', error);
+    console.error('[ERROR] Firestore product deletion failed:', error);
+    handleFirestoreError(error, OperationType.DELETE, `${PRODUCTS_COL}/${id}`);
   }
 }
 
@@ -345,11 +354,13 @@ export async function uploadProductImage(
   try {
     if (onProgress) onProgress(15);
 
-    // Compress image client-side via canvas
-    const compressedDataUrl = await compressImage(file);
+    // Compress image client-side via canvas to 1200px max, 0.75 quality (crisp but compact!)
+    const compressedDataUrl = await compressImage(file, 1200, 0.75);
     if (onProgress) onProgress(60);
 
-    // Try uploading to Firebase Storage with a 2-second timeout fallback
+    console.log('[DEBUG] Product image compressed client-side. Size of compressed string:', Math.round(compressedDataUrl.length / 1024), 'KB');
+
+    // Try uploading to Firebase Storage with a 45-second timeout fallback
     try {
       const filename = `products/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
       const storageRef = ref(storage, filename);
@@ -357,46 +368,53 @@ export async function uploadProductImage(
       const response = await fetch(compressedDataUrl);
       const blob = await response.blob();
 
+      console.log('[DEBUG] Starting upload to Firebase Storage:', filename);
       const uploadTask = uploadBytesResumable(storageRef, blob);
 
-      const storagePromise = new Promise<string>((resolve) => {
+      const storagePromise = new Promise<string>((resolve, reject) => {
         uploadTask.on(
           'state_changed',
           (snapshot) => {
             const pct = Math.round((snapshot.bytesTransferred / (snapshot.totalBytes || 1)) * 35) + 60;
             if (onProgress) onProgress(Math.min(pct, 95));
+            console.log('[DEBUG] Firebase Storage upload progress:', pct, '%');
           },
           (error) => {
-            console.warn('Firebase Storage upload notice, using optimized data URL:', error);
-            resolve(compressedDataUrl);
+            console.error('[ERROR] Firebase Storage upload error:', error);
+            reject(error);
           },
           async () => {
             try {
               const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
               if (onProgress) onProgress(100);
+              console.log('[DEBUG] Firebase Storage upload success! Download URL:', downloadUrl);
               resolve(downloadUrl);
-            } catch {
-              resolve(compressedDataUrl);
+            } catch (err) {
+              console.error('[ERROR] Failed to retrieve download URL:', err);
+              reject(err);
             }
           }
         );
       });
 
-      // 2.5 second timeout safeguard so upload NEVER gets stuck at 40%
-      const timeoutPromise = new Promise<string>((resolve) => {
+      // 45-second timeout safeguard so slow networks can still complete
+      const timeoutPromise = new Promise<string>((resolve, reject) => {
         setTimeout(() => {
-          if (onProgress) onProgress(100);
-          resolve(compressedDataUrl);
-        }, 2500);
+          reject(new Error('Firebase Storage upload timed out after 45 seconds'));
+        }, 45000);
       });
 
       return await Promise.race([storagePromise, timeoutPromise]);
-    } catch {
+    } catch (err: any) {
+      console.warn('[WARN] Firebase Storage upload failed/timed out. Generating a highly-optimized small base64 fallback to prevent document limits:', err);
       if (onProgress) onProgress(100);
-      return compressedDataUrl;
+      // Fallback to highly optimized tiny base64 to ensure it saves successfully to Firestore without document size errors
+      const tinyBase64 = await compressImage(file, 400, 0.4);
+      console.log('[DEBUG] Tiny base64 fallback generated. Size:', Math.round(tinyBase64.length / 1024), 'KB');
+      return tinyBase64;
     }
   } catch (error) {
-    console.error('Image processing error:', error);
+    console.error('[ERROR] Image processing error:', error);
     throw new Error('Failed to process product image. Please try another image.');
   }
 }
@@ -547,9 +565,11 @@ export async function uploadBannerImage(
 ): Promise<string> {
   try {
     if (onProgress) onProgress(15);
-    // Compress image up to 1920px max width for crisp 16:9 display
-    const compressedDataUrl = await compressImage(file, 1920, 0.9);
+    // Compress image up to 1200px max width for crisp 16:9 display, 0.75 quality (extremely fast and highly optimized!)
+    const compressedDataUrl = await compressImage(file, 1200, 0.75);
     if (onProgress) onProgress(60);
+
+    console.log('[DEBUG] Banner image compressed client-side. Size:', Math.round(compressedDataUrl.length / 1024), 'KB');
 
     try {
       const filename = `banners/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
@@ -558,42 +578,49 @@ export async function uploadBannerImage(
       const response = await fetch(compressedDataUrl);
       const blob = await response.blob();
 
+      console.log('[DEBUG] Starting upload to Firebase Storage for banner:', filename);
       const uploadTask = uploadBytesResumable(storageRef, blob);
 
-      const storagePromise = new Promise<string>((resolve) => {
+      const storagePromise = new Promise<string>((resolve, reject) => {
         uploadTask.on(
           'state_changed',
           (snapshot) => {
             const pct = Math.round((snapshot.bytesTransferred / (snapshot.totalBytes || 1)) * 35) + 60;
             if (onProgress) onProgress(Math.min(pct, 95));
+            console.log('[DEBUG] Banner upload progress:', pct, '%');
           },
           (error) => {
-            console.warn('Firebase Storage upload notice for banner, using data URL:', error);
-            resolve(compressedDataUrl);
+            console.error('[ERROR] Banner Firebase Storage upload error:', error);
+            reject(error);
           },
           async () => {
             try {
               const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
               if (onProgress) onProgress(100);
+              console.log('[DEBUG] Banner Firebase Storage upload success! Download URL:', downloadUrl);
               resolve(downloadUrl);
-            } catch {
-              resolve(compressedDataUrl);
+            } catch (err) {
+              console.error('[ERROR] Failed to retrieve banner download URL:', err);
+              reject(err);
             }
           }
         );
       });
 
-      const timeoutPromise = new Promise<string>((resolve) => {
+      // 45-second timeout safeguard
+      const timeoutPromise = new Promise<string>((resolve, reject) => {
         setTimeout(() => {
-          if (onProgress) onProgress(100);
-          resolve(compressedDataUrl);
-        }, 2500);
+          reject(new Error('Banner upload timed out after 45 seconds'));
+        }, 45000);
       });
 
       return await Promise.race([storagePromise, timeoutPromise]);
-    } catch {
+    } catch (err: any) {
+      console.warn('[WARN] Banner Firebase Storage upload failed/timed out. Generating tiny base64 fallback:', err);
       if (onProgress) onProgress(100);
-      return compressedDataUrl;
+      const tinyBase64 = await compressImage(file, 500, 0.45);
+      console.log('[DEBUG] Tiny banner base64 fallback generated. Size:', Math.round(tinyBase64.length / 1024), 'KB');
+      return tinyBase64;
     }
   } catch (error) {
     console.error('Banner processing error:', error);

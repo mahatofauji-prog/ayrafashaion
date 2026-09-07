@@ -197,15 +197,25 @@ export default function App() {
   const handleSaveProduct = async (
     productData: Omit<Product, 'id' | 'businessId' | 'createdAt' | 'updatedAt'>
   ) => {
-    if (productToEdit) {
-      await updateProduct(productToEdit.id, productData);
-      showToast('Product updated successfully.', 'success');
-    } else {
-      await addProduct(productData);
-      showToast('Product added successfully.', 'success');
+    try {
+      if (productToEdit) {
+        await updateProduct(productToEdit.id, productData);
+        showToast('Product updated successfully.', 'success');
+      } else {
+        await addProduct(productData);
+        showToast('Product added successfully.', 'success');
+      }
+      await loadCatalogueData(true);
+      setIsProductModalOpen(false);
+    } catch (err: any) {
+      console.error('[UI ERROR] Failed to save product:', err);
+      let errorMsg = err.message;
+      try {
+        const parsed = JSON.parse(err.message);
+        if (parsed && parsed.error) errorMsg = parsed.error;
+      } catch {}
+      showToast('Failed to save product: ' + errorMsg, 'error');
     }
-    await loadCatalogueData(true);
-    setIsProductModalOpen(false);
   };
 
   const handleDeleteProductPrompt = (product: Product) => {
