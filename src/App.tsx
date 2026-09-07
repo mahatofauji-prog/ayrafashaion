@@ -15,6 +15,7 @@ import {
   toggleProductAvailability,
   getAdvertisementBanners,
   deleteAdvertisementBanner,
+  isDatabaseQuotaExceeded,
 } from './firebase/services';
 import { DEFAULT_BUSINESS_PROFILE, INITIAL_CATEGORIES, INITIAL_PRODUCTS } from './firebase/seed';
 import { BusinessProfile, Category, Product, AdvertisementBanner } from './types';
@@ -83,6 +84,7 @@ export default function App() {
     }
   });
   const [hasError, setHasError] = useState(false);
+  const [isQuotaExceeded, setIsQuotaExceeded] = useState(false);
 
   // Modals & Notifications
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -168,8 +170,16 @@ export default function App() {
       setCachedData('categories', categoriesData);
       setCachedData('products', productsData);
       setCachedData('banners', bannersData);
+
+      if (isDatabaseQuotaExceeded) {
+        setIsQuotaExceeded(true);
+      }
     } catch (err) {
       console.error('Error loading initial catalogue data:', err);
+      const errStr = String(err instanceof Error ? err.message : err);
+      if (errStr.toLowerCase().includes('quota') || errStr.toLowerCase().includes('resource_exhausted')) {
+        setIsQuotaExceeded(true);
+      }
       if (!hasCache) {
         setHasError(true);
       }
@@ -498,6 +508,16 @@ export default function App() {
         businessProfile={businessProfile}
         onShare={handleShareCatalogue}
       />
+
+      {/* Quota Exceeded Notification Banner */}
+      {isQuotaExceeded && (
+        <div id="quota-exceeded-banner" className="bg-[#1A0F0F] border-b border-amber-500/10 px-4 py-2.5 text-center text-xs text-amber-200/90 flex items-center justify-center space-x-2">
+          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500/10 text-amber-400 font-bold text-[10px] border border-amber-500/20 shrink-0">!</span>
+          <span>
+            <strong>Database Read Quota Exceeded:</strong> Ayra Fashion is operating in secure <strong>Offline Mode</strong>. All data loads from the local browser cache. Your changes are fully safe and saved locally.
+          </span>
+        </div>
+      )}
 
       {/* Main View Router */}
       <div className="flex-1">
