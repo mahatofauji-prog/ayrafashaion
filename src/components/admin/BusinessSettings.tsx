@@ -67,9 +67,12 @@ export const BusinessSettings: React.FC<BusinessSettingsProps> = ({
     try {
       const uploadedUrl = await uploadProductImage(file);
       setLogoUrl(uploadedUrl);
-      onShowToast('New logo processed successfully!', 'success');
-    } catch (err) {
-      onShowToast('Failed to upload logo image', 'error');
+      // Immediately save to shared Firestore database so every device updates in real time
+      await onSaveProfile({ logoUrl: uploadedUrl });
+      onShowToast('New logo uploaded and saved to business profile!', 'success');
+    } catch (err: any) {
+      console.error('Logo upload error:', err);
+      onShowToast('Failed to upload logo image: ' + (err.message || 'Unknown error'), 'error');
     } finally {
       setIsUploadingLogo(false);
     }

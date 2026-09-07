@@ -16,6 +16,10 @@ import {
   getAdvertisementBanners,
   deleteAdvertisementBanner,
   isDatabaseQuotaExceeded,
+  subscribeToProducts,
+  subscribeToBanners,
+  subscribeToCategories,
+  subscribeToBusinessProfile,
 } from './firebase/services';
 import { DEFAULT_BUSINESS_PROFILE, INITIAL_CATEGORIES, INITIAL_PRODUCTS } from './firebase/seed';
 import { BusinessProfile, Category, Product, AdvertisementBanner } from './types';
@@ -158,14 +162,14 @@ export default function App() {
       ]);
       const updatedProfile = {
         ...profileData,
-        logoUrl: profileData.logoUrl && !profileData.logoUrl.includes('unsplash') ? profileData.logoUrl : '/logo.jpg',
+        logoUrl: profileData.logoUrl || '/logo.jpg',
       };
       setBusinessProfile(updatedProfile);
       setCategories(categoriesData);
       setProducts(productsData);
       setBanners(bannersData);
 
-      // Save to localStorage cache for subsequent instant loads
+      // Save to cache for offline fallback
       setCachedData('profile', updatedProfile);
       setCachedData('categories', categoriesData);
       setCachedData('products', productsData);
@@ -192,6 +196,47 @@ export default function App() {
   useEffect(() => {
     loadCatalogueData();
   }, [loadCatalogueData]);
+
+  // Real-time Firestore synchronization across all devices and incognito tabs
+  useEffect(() => {
+    const unsubProducts = subscribeToProducts((liveProducts) => {
+      if (liveProducts && liveProducts.length > 0) {
+        setProducts(liveProducts);
+        setCachedData('products', liveProducts);
+        setIsLoadingData(false);
+      }
+    });
+
+    const unsubBanners = subscribeToBanners((liveBanners) => {
+      setBanners(liveBanners);
+      setCachedData('banners', liveBanners);
+    });
+
+    const unsubCategories = subscribeToCategories((liveCategories) => {
+      if (liveCategories && liveCategories.length > 0) {
+        setCategories(liveCategories);
+        setCachedData('categories', liveCategories);
+      }
+    });
+
+    const unsubProfile = subscribeToBusinessProfile((liveProfile) => {
+      if (liveProfile) {
+        const enriched = {
+          ...liveProfile,
+          logoUrl: liveProfile.logoUrl || '/logo.jpg',
+        };
+        setBusinessProfile(enriched);
+        setCachedData('profile', enriched);
+      }
+    });
+
+    return () => {
+      unsubProducts();
+      unsubBanners();
+      unsubCategories();
+      unsubProfile();
+    };
+  }, []);
 
   // Product CRUD Handlers
   const handleOpenAddProduct = () => {

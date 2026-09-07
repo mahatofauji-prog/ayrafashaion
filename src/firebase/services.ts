@@ -7,6 +7,8 @@ import {
   updateDoc,
   deleteDoc,
   serverTimestamp,
+  onSnapshot,
+  Unsubscribe,
 } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage, handleFirestoreError, OperationType } from './config';
@@ -199,55 +201,105 @@ export async function deleteCategory(id: string): Promise<{ success: boolean; me
   }
 }
 
-// Helper for local custom products persistence
-function getLocalCustomProducts(): Product[] {
-  try {
-    const raw = localStorage.getItem('ayra_custom_products');
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveLocalCustomProducts(products: Product[]) {
-  try {
-    localStorage.setItem('ayra_custom_products', JSON.stringify(products));
-  } catch (err) {
-    console.warn('Failed to save products to localStorage:', err);
-  }
-}
-
 // ---- Product Services ----
 
+export function subscribeToProducts(
+  onUpdate: (products: Product[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
+  const colRef = collection(db, PRODUCTS_COL);
+  return onSnapshot(
+    colRef,
+    (snap) => {
+      const items = snap.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      })) as Product[];
+      items.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      onUpdate(items);
+    },
+    (error) => {
+      console.warn('[WARN] Firestore products subscription notice:', error);
+      if (onError) onError(error);
+    }
+  );
+}
+
+export function subscribeToBanners(
+  onUpdate: (banners: AdvertisementBanner[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
+  const colRef = collection(db, BANNERS_COL);
+  return onSnapshot(
+    colRef,
+    (snap) => {
+      const items = snap.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      })) as AdvertisementBanner[];
+      items.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+      onUpdate(items);
+    },
+    (error) => {
+      console.warn('[WARN] Firestore banners subscription notice:', error);
+      if (onError) onError(error);
+    }
+  );
+}
+
+export function subscribeToBusinessProfile(
+  onUpdate: (profile: BusinessProfile) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
+  const docRef = doc(db, BUSINESSES_COL, BUSINESS_ID);
+  return onSnapshot(
+    docRef,
+    (snap) => {
+      if (snap.exists()) {
+        onUpdate({ id: snap.id, ...snap.data() } as BusinessProfile);
+      }
+    },
+    (error) => {
+      console.warn('[WARN] Firestore business profile subscription notice:', error);
+      if (onError) onError(error);
+    }
+  );
+}
+
+export function subscribeToCategories(
+  onUpdate: (categories: Category[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
+  const colRef = collection(db, CATEGORIES_COL);
+  return onSnapshot(
+    colRef,
+    (snap) => {
+      const items = snap.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      })) as Category[];
+      onUpdate(items);
+    },
+    (error) => {
+      console.warn('[WARN] Firestore categories subscription notice:', error);
+      if (onError) onError(error);
+    }
+  );
+}
+
 export async function getProducts(): Promise<Product[]> {
-  const localItems = getLocalCustomProducts();
   try {
     const colRef = collection(db, PRODUCTS_COL);
     const snap = await getDocs(colRef);
 
     if (snap.empty) {
-      // Seed initial products in parallel
+      // Return initial products as default display if collection is empty
       const seededProducts: Product[] = INITIAL_PRODUCTS.map(prod => ({
         ...prod,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }));
-      await Promise.all(
-        seededProducts.map(async (prodData) => {
-          try {
-            await setDoc(doc(db, PRODUCTS_COL, prodData.id), prodData);
-          } catch (e) {
-            console.warn('Seeding product to Firestore notice:', e);
-          }
-        })
-      );
-      const combined = [...seededProducts];
-      for (const lp of localItems) {
-        if (!combined.some(p => p.id === lp.id)) {
-          combined.push(lp);
-        }
-      }
-      return combined.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      return seededProducts;
     }
 
     const items = snap.docs.map(docSnap => ({
@@ -255,16 +307,8 @@ export async function getProducts(): Promise<Product[]> {
       ...docSnap.data(),
     })) as Product[];
 
-    // Merge any locally added products if not in firestore yet
-    const combined = [...items];
-    for (const lp of localItems) {
-      if (!combined.some(p => p.id === lp.id)) {
-        combined.push(lp);
-      }
-    }
-
     // Sort by createdAt descending
-    return combined.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    return items.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   } catch (error) {
     const errStr = error instanceof Error ? error.message : String(error);
     const isQuotaOrOffline = 
@@ -276,25 +320,12 @@ export async function getProducts(): Promise<Product[]> {
 
     if (isQuotaOrOffline) {
       isDatabaseQuotaExceeded = true;
-      console.warn('[WARN] Firestore read quota exceeded or unreachable. Falling back to local cache or defaults.', error);
-      try {
-        const cached = localStorage.getItem('ayra_cache_products');
-        if (cached) {
-          return JSON.parse(cached) as Product[];
-        }
-      } catch {}
-      const fallback = INITIAL_PRODUCTS.map(p => ({
+      console.warn('[WARN] Firestore read quota exceeded or unreachable. Using fallback products.', error);
+      return INITIAL_PRODUCTS.map(p => ({
         ...p,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }));
-      const combined = [...fallback];
-      for (const lp of localItems) {
-        if (!combined.some(p => p.id === lp.id)) {
-          combined.push(lp);
-        }
-      }
-      return combined.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
     }
 
     console.error('[ERROR] Error fetching products from Firestore:', error);
@@ -315,14 +346,10 @@ export async function addProduct(product: Omit<Product, 'id' | 'businessId' | 'c
     updatedAt: new Date().toISOString(),
   };
 
-  // Always update local cache for quick loading
-  const currentLocals = getLocalCustomProducts();
-  saveLocalCustomProducts([newProduct, ...currentLocals]);
-
   try {
-    console.log('[DEBUG] Writing product document to Firestore:', id, newProduct);
+    console.log('[DEBUG] Writing product document to shared Firestore:', id, newProduct);
     await setDoc(doc(db, PRODUCTS_COL, id), newProduct);
-    console.log('[DEBUG] Firestore product write successful!');
+    console.log('[DEBUG] Shared Firestore product write successful!');
   } catch (error) {
     console.error('[ERROR] Firestore product write failed:', error);
     handleFirestoreError(error, OperationType.WRITE, `${PRODUCTS_COL}/${id}`);
@@ -331,21 +358,14 @@ export async function addProduct(product: Omit<Product, 'id' | 'businessId' | 'c
 }
 
 export async function updateProduct(id: string, updates: Partial<Product>): Promise<void> {
-  const currentLocals = getLocalCustomProducts();
-  const idx = currentLocals.findIndex(p => p.id === id);
-  if (idx !== -1) {
-    currentLocals[idx] = { ...currentLocals[idx], ...updates, updatedAt: new Date().toISOString() };
-    saveLocalCustomProducts(currentLocals);
-  }
-
   try {
-    console.log('[DEBUG] Updating product document in Firestore:', id, updates);
+    console.log('[DEBUG] Updating product document in shared Firestore:', id, updates);
     const prodRef = doc(db, PRODUCTS_COL, id);
     await updateDoc(prodRef, {
       ...updates,
       updatedAt: new Date().toISOString(),
     });
-    console.log('[DEBUG] Firestore product update successful!');
+    console.log('[DEBUG] Shared Firestore product update successful!');
   } catch (error) {
     console.error('[ERROR] Firestore product update failed:', error);
     handleFirestoreError(error, OperationType.UPDATE, `${PRODUCTS_COL}/${id}`);
@@ -353,13 +373,10 @@ export async function updateProduct(id: string, updates: Partial<Product>): Prom
 }
 
 export async function deleteProduct(id: string): Promise<void> {
-  const currentLocals = getLocalCustomProducts();
-  saveLocalCustomProducts(currentLocals.filter(p => p.id !== id));
-
   try {
-    console.log('[DEBUG] Deleting product document from Firestore:', id);
+    console.log('[DEBUG] Deleting product document from shared Firestore:', id);
     await deleteDoc(doc(db, PRODUCTS_COL, id));
-    console.log('[DEBUG] Firestore product deletion successful!');
+    console.log('[DEBUG] Shared Firestore product deletion successful!');
   } catch (error) {
     console.error('[ERROR] Firestore product deletion failed:', error);
     handleFirestoreError(error, OperationType.DELETE, `${PRODUCTS_COL}/${id}`);
