@@ -216,6 +216,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                   <img
                     src={product.imageUrl}
                     alt={product.name}
+                    referrerPolicy="no-referrer"
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute top-2.5 left-2.5">
@@ -307,6 +308,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                           <img
                             src={product.imageUrl}
                             alt={product.name}
+                            referrerPolicy="no-referrer"
                             className="w-12 h-12 rounded-xl object-cover bg-[#1A1A1A] shrink-0"
                           />
                           <div>

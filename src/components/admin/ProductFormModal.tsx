@@ -226,6 +226,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   <img
                     src={imageUrl}
                     alt="Product preview"
+                    referrerPolicy="no-referrer"
                     className="w-full h-full object-cover"
                   />
                 ) : (

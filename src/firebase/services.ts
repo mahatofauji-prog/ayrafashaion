@@ -347,6 +347,26 @@ export async function compressImage(file: File, maxWidth = 1200, quality = 0.85)
   });
 }
 
+// Safely convert Base64 data URL to a binary Blob without using fetch (bypasses sandbox iframe fetch restrictions)
+export function dataURLtoBlob(dataUrl: string): Blob {
+  try {
+    const parts = dataUrl.split(',');
+    if (parts.length < 2) throw new Error('Invalid data URL');
+    const mimeMatch = parts[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+    const bstr = atob(parts[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+  } catch (err) {
+    console.error('[ERROR] Failed to convert dataURL to Blob:', err);
+    throw err;
+  }
+}
+
 export async function uploadProductImage(
   file: File,
   onProgress?: (progress: number) => void
@@ -365,8 +385,7 @@ export async function uploadProductImage(
       const filename = `products/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
       const storageRef = ref(storage, filename);
       
-      const response = await fetch(compressedDataUrl);
-      const blob = await response.blob();
+      const blob = dataURLtoBlob(compressedDataUrl);
 
       console.log('[DEBUG] Starting upload to Firebase Storage:', filename);
       const uploadTask = uploadBytesResumable(storageRef, blob);
@@ -575,8 +594,7 @@ export async function uploadBannerImage(
       const filename = `banners/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
       const storageRef = ref(storage, filename);
 
-      const response = await fetch(compressedDataUrl);
-      const blob = await response.blob();
+      const blob = dataURLtoBlob(compressedDataUrl);
 
       console.log('[DEBUG] Starting upload to Firebase Storage for banner:', filename);
       const uploadTask = uploadBytesResumable(storageRef, blob);
