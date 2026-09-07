@@ -40,17 +40,17 @@ export async function getBusinessProfile(): Promise<BusinessProfile> {
       return initialData;
     }
   } catch (error) {
-    console.error('[ERROR] Failed to load business profile from Firestore:', error);
     const errStr = error instanceof Error ? error.message : String(error);
-    if (
+    const isQuotaOrOffline = 
       errStr.toLowerCase().includes('quota') || 
       errStr.toLowerCase().includes('permission') || 
       errStr.toLowerCase().includes('offline') || 
       errStr.toLowerCase().includes('unreachable') ||
-      errStr.toLowerCase().includes('resource_exhausted')
-    ) {
+      errStr.toLowerCase().includes('resource_exhausted');
+
+    if (isQuotaOrOffline) {
       isDatabaseQuotaExceeded = true;
-      console.warn('[WARN] Firestore read quota exceeded or unreachable. Falling back to local cache or defaults.');
+      console.warn('[WARN] Firestore read quota exceeded or unreachable. Falling back to local cache or defaults.', error);
       try {
         const cached = localStorage.getItem('ayra_cache_profile');
         if (cached) {
@@ -59,6 +59,8 @@ export async function getBusinessProfile(): Promise<BusinessProfile> {
       } catch {}
       return DEFAULT_BUSINESS_PROFILE;
     }
+
+    console.error('[ERROR] Failed to load business profile from Firestore:', error);
     return handleFirestoreError(error, OperationType.GET, `${BUSINESSES_COL}/${BUSINESS_ID}`);
   }
 }
@@ -101,17 +103,17 @@ export async function getCategories(): Promise<Category[]> {
       ...docSnap.data()
     })) as Category[];
   } catch (error) {
-    console.error('[ERROR] Error fetching categories from Firestore:', error);
     const errStr = error instanceof Error ? error.message : String(error);
-    if (
+    const isQuotaOrOffline = 
       errStr.toLowerCase().includes('quota') || 
       errStr.toLowerCase().includes('permission') || 
       errStr.toLowerCase().includes('offline') || 
       errStr.toLowerCase().includes('unreachable') ||
-      errStr.toLowerCase().includes('resource_exhausted')
-    ) {
+      errStr.toLowerCase().includes('resource_exhausted');
+
+    if (isQuotaOrOffline) {
       isDatabaseQuotaExceeded = true;
-      console.warn('[WARN] Firestore read quota exceeded or unreachable. Falling back to local cache or defaults.');
+      console.warn('[WARN] Firestore read quota exceeded or unreachable. Falling back to local cache or defaults.', error);
       try {
         const cached = localStorage.getItem('ayra_cache_categories');
         if (cached) {
@@ -124,6 +126,8 @@ export async function getCategories(): Promise<Category[]> {
         updatedAt: new Date().toISOString(),
       }));
     }
+
+    console.error('[ERROR] Error fetching categories from Firestore:', error);
     return handleFirestoreError(error, OperationType.LIST, CATEGORIES_COL);
   }
 }
@@ -262,17 +266,17 @@ export async function getProducts(): Promise<Product[]> {
     // Sort by createdAt descending
     return combined.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   } catch (error) {
-    console.error('[ERROR] Error fetching products from Firestore:', error);
     const errStr = error instanceof Error ? error.message : String(error);
-    if (
+    const isQuotaOrOffline = 
       errStr.toLowerCase().includes('quota') || 
       errStr.toLowerCase().includes('permission') || 
       errStr.toLowerCase().includes('offline') || 
       errStr.toLowerCase().includes('unreachable') ||
-      errStr.toLowerCase().includes('resource_exhausted')
-    ) {
+      errStr.toLowerCase().includes('resource_exhausted');
+
+    if (isQuotaOrOffline) {
       isDatabaseQuotaExceeded = true;
-      console.warn('[WARN] Firestore read quota exceeded or unreachable. Falling back to local cache or defaults.');
+      console.warn('[WARN] Firestore read quota exceeded or unreachable. Falling back to local cache or defaults.', error);
       try {
         const cached = localStorage.getItem('ayra_cache_products');
         if (cached) {
@@ -292,6 +296,8 @@ export async function getProducts(): Promise<Product[]> {
       }
       return combined.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
     }
+
+    console.error('[ERROR] Error fetching products from Firestore:', error);
     return handleFirestoreError(error, OperationType.LIST, PRODUCTS_COL);
   }
 }
@@ -548,17 +554,17 @@ export async function getAdvertisementBanners(): Promise<AdvertisementBanner[]> 
       displayOrder: typeof item.displayOrder === 'number' ? item.displayOrder : idx,
     }));
   } catch (error) {
-    console.error('[ERROR] Error fetching advertisement banners from Firestore:', error);
     const errStr = error instanceof Error ? error.message : String(error);
-    if (
+    const isQuotaOrOffline = 
       errStr.toLowerCase().includes('quota') || 
       errStr.toLowerCase().includes('permission') || 
       errStr.toLowerCase().includes('offline') || 
       errStr.toLowerCase().includes('unreachable') ||
-      errStr.toLowerCase().includes('resource_exhausted')
-    ) {
+      errStr.toLowerCase().includes('resource_exhausted');
+
+    if (isQuotaOrOffline) {
       isDatabaseQuotaExceeded = true;
-      console.warn('[WARN] Firestore read quota exceeded or unreachable. Falling back to local cache or defaults.');
+      console.warn('[WARN] Firestore read quota exceeded or unreachable. Falling back to local cache or defaults.', error);
       try {
         const cached = localStorage.getItem('ayra_cache_banners');
         if (cached) {
@@ -567,6 +573,8 @@ export async function getAdvertisementBanners(): Promise<AdvertisementBanner[]> 
       } catch {}
       return [];
     }
+
+    console.error('[ERROR] Error fetching advertisement banners from Firestore:', error);
     return handleFirestoreError(error, OperationType.LIST, BANNERS_COL);
   }
 }
