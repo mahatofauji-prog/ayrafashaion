@@ -172,8 +172,11 @@ export default function App() {
       // Save to cache for offline fallback
       setCachedData('profile', updatedProfile);
       setCachedData('categories', categoriesData);
-      setCachedData('products', productsData);
       setCachedData('banners', bannersData);
+      // Only cache products if not quota fallback or if no existing cache
+      if (!isDatabaseQuotaExceeded || !hasCache) {
+        setCachedData('products', productsData);
+      }
 
       if (isDatabaseQuotaExceeded) {
         setIsQuotaExceeded(true);

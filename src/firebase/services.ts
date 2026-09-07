@@ -320,7 +320,16 @@ export async function getProducts(): Promise<Product[]> {
 
     if (isQuotaOrOffline) {
       isDatabaseQuotaExceeded = true;
-      console.warn('[WARN] Firestore read quota exceeded or unreachable. Using fallback products.', error);
+      console.warn('[WARN] Firestore read quota exceeded or unreachable. Using fallback or cached products.', error);
+      try {
+        const cached = localStorage.getItem('ayra_cache_products');
+        if (cached) {
+          const parsed = JSON.parse(cached) as Product[];
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        }
+      } catch {}
       return INITIAL_PRODUCTS.map(p => ({
         ...p,
         createdAt: new Date().toISOString(),
@@ -354,6 +363,15 @@ export async function addProduct(product: Omit<Product, 'id' | 'businessId' | 'c
     console.error('[ERROR] Firestore product write failed:', error);
     handleFirestoreError(error, OperationType.WRITE, `${PRODUCTS_COL}/${id}`);
   }
+
+  // Update local cache so admin device never loses uploaded items even across refreshes or offline
+  try {
+    const cached = localStorage.getItem('ayra_cache_products');
+    const existing = cached ? (JSON.parse(cached) as Product[]) : [];
+    const updated = [newProduct, ...existing.filter(p => p.id !== id)];
+    localStorage.setItem('ayra_cache_products', JSON.stringify(updated));
+  } catch {}
+
   return newProduct;
 }
 
@@ -370,6 +388,15 @@ export async function updateProduct(id: string, updates: Partial<Product>): Prom
     console.error('[ERROR] Firestore product update failed:', error);
     handleFirestoreError(error, OperationType.UPDATE, `${PRODUCTS_COL}/${id}`);
   }
+
+  try {
+    const cached = localStorage.getItem('ayra_cache_products');
+    if (cached) {
+      const existing = JSON.parse(cached) as Product[];
+      const updated = existing.map(p => p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p);
+      localStorage.setItem('ayra_cache_products', JSON.stringify(updated));
+    }
+  } catch {}
 }
 
 export async function deleteProduct(id: string): Promise<void> {
@@ -381,6 +408,15 @@ export async function deleteProduct(id: string): Promise<void> {
     console.error('[ERROR] Firestore product deletion failed:', error);
     handleFirestoreError(error, OperationType.DELETE, `${PRODUCTS_COL}/${id}`);
   }
+
+  try {
+    const cached = localStorage.getItem('ayra_cache_products');
+    if (cached) {
+      const existing = JSON.parse(cached) as Product[];
+      const updated = existing.filter(p => p.id !== id);
+      localStorage.setItem('ayra_cache_products', JSON.stringify(updated));
+    }
+  } catch {}
 }
 
 export async function toggleProductAvailability(id: string, currentStatus: AvailabilityStatus): Promise<AvailabilityStatus> {
