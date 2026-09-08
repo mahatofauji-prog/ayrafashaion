@@ -142,7 +142,7 @@ export default function App() {
     );
   }, [currentUser]);
 
-  // Fetch initial data
+  // Manual refresh / retry handler
   const loadCatalogueData = useCallback(async (forceLoading = false) => {
     let hasCache = false;
     try {
@@ -155,10 +155,10 @@ export default function App() {
     setHasError(false);
     try {
       const [profileData, categoriesData, productsData, bannersData] = await Promise.all([
-        getBusinessProfile(),
-        getCategories(),
-        getProducts(),
-        getAdvertisementBanners(),
+        getBusinessProfile(true),
+        getCategories(true),
+        getProducts(true),
+        getAdvertisementBanners(true),
       ]);
       const updatedProfile = {
         ...profileData,
@@ -173,16 +173,17 @@ export default function App() {
       setCachedData('profile', updatedProfile);
       setCachedData('categories', categoriesData);
       setCachedData('banners', bannersData);
-      // Only cache products if not quota fallback or if no existing cache
       if (!isDatabaseQuotaExceeded || !hasCache) {
         setCachedData('products', productsData);
       }
 
       if (isDatabaseQuotaExceeded) {
         setIsQuotaExceeded(true);
+      } else {
+        setIsQuotaExceeded(false);
       }
     } catch (err) {
-      console.error('Error loading initial catalogue data:', err);
+      console.error('Error refreshing catalogue data:', err);
       const errStr = String(err instanceof Error ? err.message : err);
       if (errStr.toLowerCase().includes('quota') || errStr.toLowerCase().includes('resource_exhausted')) {
         setIsQuotaExceeded(true);
@@ -196,19 +197,24 @@ export default function App() {
     }
   }, [showToast]);
 
+  // Centralized real-time Firestore synchronization across all views and devices
   useEffect(() => {
-    loadCatalogueData();
-  }, [loadCatalogueData]);
-
-  // Real-time Firestore synchronization across all devices and incognito tabs
-  useEffect(() => {
-    const unsubProducts = subscribeToProducts((liveProducts) => {
-      if (liveProducts && liveProducts.length > 0) {
-        setProducts(liveProducts);
-        setCachedData('products', liveProducts);
+    const unsubProducts = subscribeToProducts(
+      (liveProducts) => {
+        if (liveProducts && liveProducts.length > 0) {
+          setProducts(liveProducts);
+          setCachedData('products', liveProducts);
+        }
+        setIsLoadingData(false);
+      },
+      (error) => {
+        const errStr = String(error?.message || error);
+        if (errStr.toLowerCase().includes('quota') || errStr.toLowerCase().includes('resource_exhausted')) {
+          setIsQuotaExceeded(true);
+        }
         setIsLoadingData(false);
       }
-    });
+    );
 
     const unsubBanners = subscribeToBanners((liveBanners) => {
       setBanners(liveBanners);
@@ -265,12 +271,19 @@ export default function App() {
       };
       if (productToEdit) {
         await updateProduct(productToEdit.id, sanitizedProductData);
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.id === productToEdit.id
+              ? { ...p, ...sanitizedProductData, updatedAt: new Date().toISOString() }
+              : p
+          )
+        );
         showToast('Product updated successfully.', 'success');
       } else {
-        await addProduct(sanitizedProductData);
+        const newProduct = await addProduct(sanitizedProductData);
+        setProducts((prev) => [newProduct, ...prev.filter((p) => p.id !== newProduct.id)]);
         showToast('Product added successfully.', 'success');
       }
-      await loadCatalogueData(true);
       setIsProductModalOpen(false);
     } catch (err: any) {
       console.error('[UI ERROR] Failed to save product:', err);
@@ -292,8 +305,8 @@ export default function App() {
       onConfirm: async () => {
         try {
           await deleteProduct(product.id);
+          setProducts((prev) => prev.filter((p) => p.id !== product.id));
           showToast(`Deleted "${product.name}"`, 'success');
-          await loadCatalogueData(true);
           setConfirmModal((prev) => ({ ...prev, isOpen: false }));
         } catch (err: any) {
           showToast('Failed to delete product: ' + err.message, 'error');
@@ -320,13 +333,20 @@ export default function App() {
   // Category CRUD Handlers
   const handleAddNewCategory = async (name: string, description?: string): Promise<Category> => {
     const newCat = await addCategory(name, description);
-    await loadCatalogueData(true);
+    setCategories((prev) => [...prev.filter((c) => c.id !== newCat.id), newCat]);
     return newCat;
   };
 
   const handleUpdateCategory = async (id: string, name: string, description?: string) => {
     await updateCategory(id, name, description);
-    await loadCatalogueData(true);
+    setCategories((prev) =>
+      prev.map((c) =>
+        c.id === id ? { ...c, name: name.trim(), description: description?.trim() || '' } : c
+      )
+    );
+    setProducts((prev) =>
+      prev.map((p) => (p.categoryId === id ? { ...p, categoryName: name.trim() } : p))
+    );
   };
 
   const handleDeleteCategoryPrompt = (category: Category) => {
@@ -348,8 +368,8 @@ export default function App() {
         try {
           const res = await deleteCategory(category.id);
           if (res.success) {
+            setCategories((prev) => prev.filter((c) => c.id !== category.id));
             showToast(`Deleted category "${category.name}"`, 'success');
-            await loadCatalogueData(true);
           } else {
             showToast(res.message || 'Failed to delete category.', 'error');
           }
@@ -370,7 +390,6 @@ export default function App() {
         setCachedData('profile', next);
         return next;
       });
-      await loadCatalogueData(true);
       showToast('Business details updated successfully!', 'success');
     } catch (err: any) {
       console.error('[UI ERROR] Failed to save business profile:', err);
@@ -659,9 +678,8 @@ export default function App() {
         {currentView === 'admin-banners' && (
           <BannerManagement
             banners={banners}
-            onBannersUpdated={async () => {
-              const bannersData = await getAdvertisementBanners();
-              setBanners(bannersData);
+            onBannersUpdated={() => {
+              // Real-time subscription automatically keeps banners state updated
             }}
             onShowToast={showToast}
           />

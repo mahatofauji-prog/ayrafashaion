@@ -23,58 +23,305 @@ const BANNERS_COL = 'advertisementBanners';
 
 export let isDatabaseQuotaExceeded = false;
 
-// ---- Business Profile Services ----
+// ---- Single Collection & Document Listener Manager ----
+// Prevents duplicate Firestore subscriptions, avoids redundant getDocs reads,
+// caches data locally, and ensures instant zero-latency UI rendering.
+class SingleCollectionListener<T> {
+  private colName: string;
+  private isDocument: boolean;
+  private docId?: string;
+  private cacheKey: string;
+  private transform: (snap: any) => T;
+  private subscribers = new Set<(data: T) => void>();
+  private errorSubscribers = new Set<(err: Error) => void>();
+  private unsubscribeFirestore: Unsubscribe | null = null;
+  private cachedData: T | null = null;
+  private lastFetchTime = 0;
 
-export async function getBusinessProfile(): Promise<BusinessProfile> {
-  try {
-    const businessDocRef = doc(db, BUSINESSES_COL, BUSINESS_ID);
-    const snap = await getDoc(businessDocRef);
+  constructor(options: {
+    colName: string;
+    isDocument?: boolean;
+    docId?: string;
+    cacheKey: string;
+    transform: (snap: any) => T;
+    defaultData?: T;
+  }) {
+    this.colName = options.colName;
+    this.isDocument = !!options.isDocument;
+    this.docId = options.docId;
+    this.cacheKey = options.cacheKey;
+    this.transform = options.transform;
 
+    // Pre-populate with local cache if available
+    try {
+      const stored = localStorage.getItem(this.cacheKey);
+      if (stored) {
+        this.cachedData = JSON.parse(stored);
+      } else if (options.defaultData !== undefined) {
+        this.cachedData = options.defaultData;
+      }
+    } catch {
+      if (options.defaultData !== undefined) {
+        this.cachedData = options.defaultData;
+      }
+    }
+  }
+
+  getData(): T | null {
+    return this.cachedData;
+  }
+
+  setData(data: T) {
+    this.cachedData = data;
+    this.lastFetchTime = Date.now();
+    try {
+      localStorage.setItem(this.cacheKey, JSON.stringify(data));
+    } catch {}
+    this.subscribers.forEach((cb) => {
+      try {
+        cb(data);
+      } catch (err) {
+        console.error(`[SingleListener ${this.colName}] Callback error:`, err);
+      }
+    });
+  }
+
+  subscribe(onUpdate: (data: T) => void, onError?: (error: Error) => void): Unsubscribe {
+    this.subscribers.add(onUpdate);
+    if (onError) this.errorSubscribers.add(onError);
+
+    // Provide cached data immediately to eliminate blank screen delays
+    if (this.cachedData !== null) {
+      try {
+        onUpdate(this.cachedData);
+      } catch (err) {
+        console.error(`[SingleListener ${this.colName}] Initial update error:`, err);
+      }
+    }
+
+    // Connect to Firestore onSnapshot only once
+    if (!this.unsubscribeFirestore) {
+      const targetRef = this.isDocument
+        ? doc(db, this.colName, this.docId!)
+        : collection(db, this.colName);
+
+      this.unsubscribeFirestore = onSnapshot(
+        targetRef as any,
+        (snap: any) => {
+          try {
+            const transformed = this.transform(snap);
+            this.cachedData = transformed;
+            this.lastFetchTime = Date.now();
+            try {
+              localStorage.setItem(this.cacheKey, JSON.stringify(transformed));
+            } catch {}
+            this.subscribers.forEach((cb) => {
+              try {
+                cb(transformed);
+              } catch (err) {
+                console.error(`[SingleListener ${this.colName}] Subscriber error:`, err);
+              }
+            });
+          } catch (err) {
+            console.error(`[SingleListener ${this.colName}] Snapshot parse error:`, err);
+          }
+        },
+        (error: Error) => {
+          const errStr = error?.message || String(error);
+          if (
+            errStr.toLowerCase().includes('quota') ||
+            errStr.toLowerCase().includes('resource_exhausted') ||
+            errStr.toLowerCase().includes('permission') ||
+            errStr.toLowerCase().includes('offline') ||
+            errStr.toLowerCase().includes('unreachable')
+          ) {
+            isDatabaseQuotaExceeded = true;
+            console.warn(`[SingleListener ${this.colName}] Quota or network issue. Relying on local cache.`, error);
+          }
+          this.errorSubscribers.forEach((cb) => {
+            try {
+              cb(error);
+            } catch (err) {
+              console.error(`[SingleListener ${this.colName}] Error handler error:`, err);
+            }
+          });
+        }
+      );
+    }
+
+    return () => {
+      this.subscribers.delete(onUpdate);
+      if (onError) this.errorSubscribers.delete(onError);
+
+      if (this.subscribers.size === 0 && this.unsubscribeFirestore) {
+        this.unsubscribeFirestore();
+        this.unsubscribeFirestore = null;
+      }
+    };
+  }
+
+  async getOrFetch(fetcher: () => Promise<T>, forceRefresh = false, ttlMs = 180000): Promise<T> {
+    // If listener is active or cached data is fresh within TTL, return cached data without querying Firestore
+    if (!forceRefresh && this.cachedData !== null) {
+      if (this.unsubscribeFirestore || Date.now() - this.lastFetchTime < ttlMs) {
+        return this.cachedData;
+      }
+    }
+
+    try {
+      const fresh = await fetcher();
+      this.setData(fresh);
+      return fresh;
+    } catch (err) {
+      if (this.cachedData !== null) {
+        return this.cachedData;
+      }
+      throw err;
+    }
+  }
+}
+
+// Single active listeners for the four core collections
+const profileListener = new SingleCollectionListener<BusinessProfile>({
+  colName: BUSINESSES_COL,
+  isDocument: true,
+  docId: BUSINESS_ID,
+  cacheKey: 'ayra_cache_profile',
+  defaultData: DEFAULT_BUSINESS_PROFILE,
+  transform: (snap) => {
     if (snap.exists()) {
       return { id: snap.id, ...snap.data() } as BusinessProfile;
-    } else {
-      // Initialize with default AYRA FASHION profile
-      const initialData: BusinessProfile = {
-        ...DEFAULT_BUSINESS_PROFILE,
+    }
+    return DEFAULT_BUSINESS_PROFILE;
+  },
+});
+
+const categoriesListener = new SingleCollectionListener<Category[]>({
+  colName: CATEGORIES_COL,
+  cacheKey: 'ayra_cache_categories',
+  defaultData: INITIAL_CATEGORIES.map((c) => ({
+    ...c,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  })),
+  transform: (snap) => {
+    if (snap.empty) {
+      return INITIAL_CATEGORIES.map((cat) => ({
+        ...cat,
+        createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+      }));
+    }
+    return snap.docs.map((docSnap: any) => ({
+      id: docSnap.id,
+      ...docSnap.data(),
+    })) as Category[];
+  },
+});
+
+const productsListener = new SingleCollectionListener<Product[]>({
+  colName: PRODUCTS_COL,
+  cacheKey: 'ayra_cache_products',
+  defaultData: INITIAL_PRODUCTS.map((prod) => ({
+    ...prod,
+    availability: prod.availability ?? 'Available',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  })),
+  transform: (snap) => {
+    if (snap.empty) {
+      return INITIAL_PRODUCTS.map((prod) => ({
+        ...prod,
+        availability: prod.availability ?? 'Available',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }));
+    }
+    const items = snap.docs.map((docSnap: any) => {
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        ...data,
+        availability: data.availability ?? 'Available',
       };
-      await setDoc(businessDocRef, initialData);
-      return initialData;
-    }
-  } catch (error) {
-    const errStr = error instanceof Error ? error.message : String(error);
-    const isQuotaOrOffline = 
-      errStr.toLowerCase().includes('quota') || 
-      errStr.toLowerCase().includes('permission') || 
-      errStr.toLowerCase().includes('offline') || 
-      errStr.toLowerCase().includes('unreachable') ||
-      errStr.toLowerCase().includes('resource_exhausted');
+    }) as Product[];
+    return items.sort(
+      (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+    );
+  },
+});
 
-    if (isQuotaOrOffline) {
-      isDatabaseQuotaExceeded = true;
-      console.warn('[WARN] Firestore read quota exceeded or unreachable. Falling back to local cache or defaults.', error);
-      try {
-        const cached = localStorage.getItem('ayra_cache_profile');
-        if (cached) {
-          return JSON.parse(cached) as BusinessProfile;
-        }
-      } catch {}
-      return DEFAULT_BUSINESS_PROFILE;
-    }
+const bannersListener = new SingleCollectionListener<AdvertisementBanner[]>({
+  colName: BANNERS_COL,
+  cacheKey: 'ayra_cache_banners',
+  defaultData: [],
+  transform: (snap) => {
+    const items = snap.docs.map((docSnap: any) => ({
+      id: docSnap.id,
+      ...docSnap.data(),
+    })) as AdvertisementBanner[];
+    return items
+      .map((item: any, idx: number) => ({
+        ...item,
+        displayOrder: typeof item.displayOrder === 'number' ? item.displayOrder : idx,
+      }))
+      .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+  },
+});
 
-    console.error('[ERROR] Failed to load business profile from Firestore:', error);
-    return handleFirestoreError(error, OperationType.GET, `${BUSINESSES_COL}/${BUSINESS_ID}`);
-  }
+// ---- Business Profile Services ----
+
+export async function getBusinessProfile(forceRefresh = false): Promise<BusinessProfile> {
+  return profileListener.getOrFetch(async () => {
+    try {
+      const businessDocRef = doc(db, BUSINESSES_COL, BUSINESS_ID);
+      const snap = await getDoc(businessDocRef);
+
+      if (snap.exists()) {
+        return { id: snap.id, ...snap.data() } as BusinessProfile;
+      } else {
+        const initialData: BusinessProfile = {
+          ...DEFAULT_BUSINESS_PROFILE,
+          updatedAt: new Date().toISOString(),
+        };
+        await setDoc(businessDocRef, initialData);
+        return initialData;
+      }
+    } catch (error) {
+      const errStr = error instanceof Error ? error.message : String(error);
+      const isQuotaOrOffline =
+        errStr.toLowerCase().includes('quota') ||
+        errStr.toLowerCase().includes('permission') ||
+        errStr.toLowerCase().includes('offline') ||
+        errStr.toLowerCase().includes('unreachable') ||
+        errStr.toLowerCase().includes('resource_exhausted');
+
+      if (isQuotaOrOffline) {
+        isDatabaseQuotaExceeded = true;
+        console.warn('[WARN] Firestore read quota exceeded or unreachable. Using cached profile.');
+        return profileListener.getData() || DEFAULT_BUSINESS_PROFILE;
+      }
+
+      console.error('[ERROR] Failed to load business profile from Firestore:', error);
+      return handleFirestoreError(error, OperationType.GET, `${BUSINESSES_COL}/${BUSINESS_ID}`);
+    }
+  }, forceRefresh);
 }
 
 export async function updateBusinessProfile(data: Partial<BusinessProfile>): Promise<void> {
   try {
     const businessDocRef = doc(db, BUSINESSES_COL, BUSINESS_ID);
-    await setDoc(businessDocRef, {
-      ...data,
-      id: BUSINESS_ID,
-      updatedAt: new Date().toISOString(),
-    }, { merge: true });
+    await setDoc(
+      businessDocRef,
+      {
+        ...data,
+        id: BUSINESS_ID,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+    const current = profileListener.getData() || DEFAULT_BUSINESS_PROFILE;
+    profileListener.setData({ ...current, ...data });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `${BUSINESSES_COL}/${BUSINESS_ID}`);
   }
@@ -82,56 +329,54 @@ export async function updateBusinessProfile(data: Partial<BusinessProfile>): Pro
 
 // ---- Category Services ----
 
-export async function getCategories(): Promise<Category[]> {
-  try {
-    const colRef = collection(db, CATEGORIES_COL);
-    const snap = await getDocs(colRef);
+export async function getCategories(forceRefresh = false): Promise<Category[]> {
+  return categoriesListener.getOrFetch(async () => {
+    try {
+      const colRef = collection(db, CATEGORIES_COL);
+      const snap = await getDocs(colRef);
 
-    if (snap.empty) {
-      // Seed initial categories in parallel
-      const seededCategories: Category[] = INITIAL_CATEGORIES.map(cat => ({
-        ...cat,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }));
-      await Promise.all(
-        seededCategories.map(catData => setDoc(doc(db, CATEGORIES_COL, catData.id), catData))
-      );
-      return seededCategories;
+      if (snap.empty) {
+        const seededCategories: Category[] = INITIAL_CATEGORIES.map((cat) => ({
+          ...cat,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }));
+        await Promise.all(
+          seededCategories.map((catData) => setDoc(doc(db, CATEGORIES_COL, catData.id), catData))
+        );
+        return seededCategories;
+      }
+
+      return snap.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      })) as Category[];
+    } catch (error) {
+      const errStr = error instanceof Error ? error.message : String(error);
+      const isQuotaOrOffline =
+        errStr.toLowerCase().includes('quota') ||
+        errStr.toLowerCase().includes('permission') ||
+        errStr.toLowerCase().includes('offline') ||
+        errStr.toLowerCase().includes('unreachable') ||
+        errStr.toLowerCase().includes('resource_exhausted');
+
+      if (isQuotaOrOffline) {
+        isDatabaseQuotaExceeded = true;
+        console.warn('[WARN] Firestore read quota exceeded or unreachable. Using cached categories.');
+        return (
+          categoriesListener.getData() ||
+          INITIAL_CATEGORIES.map((c) => ({
+            ...c,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }))
+        );
+      }
+
+      console.error('[ERROR] Error fetching categories from Firestore:', error);
+      return handleFirestoreError(error, OperationType.LIST, CATEGORIES_COL);
     }
-
-    return snap.docs.map(docSnap => ({
-      id: docSnap.id,
-      ...docSnap.data()
-    })) as Category[];
-  } catch (error) {
-    const errStr = error instanceof Error ? error.message : String(error);
-    const isQuotaOrOffline = 
-      errStr.toLowerCase().includes('quota') || 
-      errStr.toLowerCase().includes('permission') || 
-      errStr.toLowerCase().includes('offline') || 
-      errStr.toLowerCase().includes('unreachable') ||
-      errStr.toLowerCase().includes('resource_exhausted');
-
-    if (isQuotaOrOffline) {
-      isDatabaseQuotaExceeded = true;
-      console.warn('[WARN] Firestore read quota exceeded or unreachable. Falling back to local cache or defaults.', error);
-      try {
-        const cached = localStorage.getItem('ayra_cache_categories');
-        if (cached) {
-          return JSON.parse(cached) as Category[];
-        }
-      } catch {}
-      return INITIAL_CATEGORIES.map(c => ({
-        ...c,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }));
-    }
-
-    console.error('[ERROR] Error fetching categories from Firestore:', error);
-    return handleFirestoreError(error, OperationType.LIST, CATEGORIES_COL);
-  }
+  }, forceRefresh);
 }
 
 export async function addCategory(name: string, description?: string): Promise<Category> {
@@ -149,9 +394,12 @@ export async function addCategory(name: string, description?: string): Promise<C
 
   try {
     await setDoc(doc(db, CATEGORIES_COL, id), newCategory);
+    const current = categoriesListener.getData() || [];
+    categoriesListener.setData([...current.filter((c) => c.id !== id), newCategory]);
     return newCategory;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, `${CATEGORIES_COL}/${id}`);
+    throw error;
   }
 }
 
@@ -166,14 +414,27 @@ export async function updateCategory(id: string, name: string, description?: str
       updatedAt: new Date().toISOString(),
     });
 
-    // Also update categoryName in any products matching this categoryId
-    const productsSnap = await getDocs(collection(db, PRODUCTS_COL));
-    for (const pDoc of productsSnap.docs) {
-      if (pDoc.data().categoryId === id) {
-        await updateDoc(pDoc.ref, {
-          categoryName: name.trim(),
-          updatedAt: new Date().toISOString(),
-        });
+    const current = categoriesListener.getData() || [];
+    categoriesListener.setData(
+      current.map((c) =>
+        c.id === id ? { ...c, name: name.trim(), description: description?.trim() || '' } : c
+      )
+    );
+
+    // Update categoryName in matching products without getDocs reads
+    const currentProducts = productsListener.getData() || [];
+    const matchingProducts = currentProducts.filter((p) => p.categoryId === id);
+    if (matchingProducts.length > 0) {
+      productsListener.setData(
+        currentProducts.map((p) => (p.categoryId === id ? { ...p, categoryName: name.trim() } : p))
+      );
+      for (const p of matchingProducts) {
+        try {
+          await updateDoc(doc(db, PRODUCTS_COL, p.id), {
+            categoryName: name.trim(),
+            updatedAt: new Date().toISOString(),
+          });
+        } catch {}
       }
     }
   } catch (error) {
@@ -183,9 +444,9 @@ export async function updateCategory(id: string, name: string, description?: str
 
 export async function deleteCategory(id: string): Promise<{ success: boolean; message?: string }> {
   try {
-    // Check if products exist in this category
-    const productsSnap = await getDocs(collection(db, PRODUCTS_COL));
-    const matchingProducts = productsSnap.docs.filter(d => d.data().categoryId === id);
+    // Check if products exist in this category using in-memory cache to save Firestore reads
+    const currentProducts = productsListener.getData() || [];
+    const matchingProducts = currentProducts.filter((d) => d.categoryId === id);
 
     if (matchingProducts.length > 0) {
       return {
@@ -195,9 +456,12 @@ export async function deleteCategory(id: string): Promise<{ success: boolean; me
     }
 
     await deleteDoc(doc(db, CATEGORIES_COL, id));
+    const current = categoriesListener.getData() || [];
+    categoriesListener.setData(current.filter((c) => c.id !== id));
     return { success: true };
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `${CATEGORIES_COL}/${id}`);
+    throw error;
   }
 }
 
@@ -207,10 +471,45 @@ export function subscribeToProducts(
   onUpdate: (products: Product[]) => void,
   onError?: (error: Error) => void
 ): Unsubscribe {
-  const colRef = collection(db, PRODUCTS_COL);
-  return onSnapshot(
-    colRef,
-    (snap) => {
+  return productsListener.subscribe(onUpdate, onError);
+}
+
+export function subscribeToBanners(
+  onUpdate: (banners: AdvertisementBanner[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
+  return bannersListener.subscribe(onUpdate, onError);
+}
+
+export function subscribeToBusinessProfile(
+  onUpdate: (profile: BusinessProfile) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
+  return profileListener.subscribe(onUpdate, onError);
+}
+
+export function subscribeToCategories(
+  onUpdate: (categories: Category[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
+  return categoriesListener.subscribe(onUpdate, onError);
+}
+
+export async function getProducts(forceRefresh = false): Promise<Product[]> {
+  return productsListener.getOrFetch(async () => {
+    try {
+      const colRef = collection(db, PRODUCTS_COL);
+      const snap = await getDocs(colRef);
+
+      if (snap.empty) {
+        return INITIAL_PRODUCTS.map((prod) => ({
+          ...prod,
+          availability: prod.availability ?? 'Available',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }));
+      }
+
       const items = snap.docs.map((docSnap) => {
         const data = docSnap.data();
         return {
@@ -219,135 +518,37 @@ export function subscribeToProducts(
           availability: data.availability ?? 'Available',
         };
       }) as Product[];
-      items.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-      onUpdate(items);
-    },
-    (error) => {
-      console.warn('[WARN] Firestore products subscription notice:', error);
-      if (onError) onError(error);
-    }
-  );
-}
 
-export function subscribeToBanners(
-  onUpdate: (banners: AdvertisementBanner[]) => void,
-  onError?: (error: Error) => void
-): Unsubscribe {
-  const colRef = collection(db, BANNERS_COL);
-  return onSnapshot(
-    colRef,
-    (snap) => {
-      const items = snap.docs.map((docSnap) => ({
-        id: docSnap.id,
-        ...docSnap.data(),
-      })) as AdvertisementBanner[];
-      items.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
-      onUpdate(items);
-    },
-    (error) => {
-      console.warn('[WARN] Firestore banners subscription notice:', error);
-      if (onError) onError(error);
-    }
-  );
-}
+      return items.sort(
+        (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+      );
+    } catch (error) {
+      const errStr = error instanceof Error ? error.message : String(error);
+      const isQuotaOrOffline =
+        errStr.toLowerCase().includes('quota') ||
+        errStr.toLowerCase().includes('permission') ||
+        errStr.toLowerCase().includes('offline') ||
+        errStr.toLowerCase().includes('unreachable') ||
+        errStr.toLowerCase().includes('resource_exhausted');
 
-export function subscribeToBusinessProfile(
-  onUpdate: (profile: BusinessProfile) => void,
-  onError?: (error: Error) => void
-): Unsubscribe {
-  const docRef = doc(db, BUSINESSES_COL, BUSINESS_ID);
-  return onSnapshot(
-    docRef,
-    (snap) => {
-      if (snap.exists()) {
-        onUpdate({ id: snap.id, ...snap.data() } as BusinessProfile);
+      if (isQuotaOrOffline) {
+        isDatabaseQuotaExceeded = true;
+        console.warn('[WARN] Firestore read quota exceeded or unreachable. Using cached products.');
+        return (
+          productsListener.getData() ||
+          INITIAL_PRODUCTS.map((p) => ({
+            ...p,
+            availability: p.availability ?? 'Available',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }))
+        );
       }
-    },
-    (error) => {
-      console.warn('[WARN] Firestore business profile subscription notice:', error);
-      if (onError) onError(error);
+
+      console.error('[ERROR] Error fetching products from Firestore:', error);
+      return handleFirestoreError(error, OperationType.LIST, PRODUCTS_COL);
     }
-  );
-}
-
-export function subscribeToCategories(
-  onUpdate: (categories: Category[]) => void,
-  onError?: (error: Error) => void
-): Unsubscribe {
-  const colRef = collection(db, CATEGORIES_COL);
-  return onSnapshot(
-    colRef,
-    (snap) => {
-      const items = snap.docs.map((docSnap) => ({
-        id: docSnap.id,
-        ...docSnap.data(),
-      })) as Category[];
-      onUpdate(items);
-    },
-    (error) => {
-      console.warn('[WARN] Firestore categories subscription notice:', error);
-      if (onError) onError(error);
-    }
-  );
-}
-
-export async function getProducts(): Promise<Product[]> {
-  try {
-    const colRef = collection(db, PRODUCTS_COL);
-    const snap = await getDocs(colRef);
-
-    if (snap.empty) {
-      // Return initial products as default display if collection is empty
-      const seededProducts: Product[] = INITIAL_PRODUCTS.map(prod => ({
-        ...prod,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }));
-      return seededProducts;
-    }
-
-    const items = snap.docs.map(docSnap => {
-      const data = docSnap.data();
-      return {
-        id: docSnap.id,
-        ...data,
-        availability: data.availability ?? 'Available',
-      };
-    }) as Product[];
-
-    // Sort by createdAt descending
-    return items.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-  } catch (error) {
-    const errStr = error instanceof Error ? error.message : String(error);
-    const isQuotaOrOffline = 
-      errStr.toLowerCase().includes('quota') || 
-      errStr.toLowerCase().includes('permission') || 
-      errStr.toLowerCase().includes('offline') || 
-      errStr.toLowerCase().includes('unreachable') ||
-      errStr.toLowerCase().includes('resource_exhausted');
-
-    if (isQuotaOrOffline) {
-      isDatabaseQuotaExceeded = true;
-      console.warn('[WARN] Firestore read quota exceeded or unreachable. Using fallback or cached products.', error);
-      try {
-        const cached = localStorage.getItem('ayra_cache_products');
-        if (cached) {
-          const parsed = JSON.parse(cached) as Product[];
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed;
-          }
-        }
-      } catch {}
-      return INITIAL_PRODUCTS.map(p => ({
-        ...p,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }));
-    }
-
-    console.error('[ERROR] Error fetching products from Firestore:', error);
-    return handleFirestoreError(error, OperationType.LIST, PRODUCTS_COL);
-  }
+  }, forceRefresh);
 }
 
 export async function addProduct(product: Omit<Product, 'id' | 'businessId' | 'createdAt' | 'updatedAt'>): Promise<Product> {
@@ -383,12 +584,11 @@ export async function addProduct(product: Omit<Product, 'id' | 'businessId' | 'c
     handleFirestoreError(error, OperationType.WRITE, `${PRODUCTS_COL}/${id}`);
   }
 
-  // Update local cache so admin device never loses uploaded items even across refreshes or offline
+  // Update memory listener and local cache so admin device never loses uploaded items even across refreshes or offline
   try {
-    const cached = localStorage.getItem('ayra_cache_products');
-    const existing = cached ? (JSON.parse(cached) as Product[]) : [];
-    const updated = [newProduct, ...existing.filter(p => p.id !== id)];
-    localStorage.setItem('ayra_cache_products', JSON.stringify(updated));
+    const current = productsListener.getData() || [];
+    const updated = [newProduct, ...current.filter((p) => p.id !== id)];
+    productsListener.setData(updated);
   } catch {}
 
   return newProduct;
@@ -422,17 +622,18 @@ export async function updateProduct(id: string, updates: Partial<Product>): Prom
   }
 
   try {
-    const cached = localStorage.getItem('ayra_cache_products');
-    if (cached) {
-      const existing = JSON.parse(cached) as Product[];
-      const updated = existing.map(p => p.id === id ? { 
-        ...p, 
-        ...updates, 
-        availability: (updates.availability ?? p.availability) ?? 'Available',
-        updatedAt: new Date().toISOString() 
-      } : p);
-      localStorage.setItem('ayra_cache_products', JSON.stringify(updated));
-    }
+    const current = productsListener.getData() || [];
+    const updated = current.map((p) =>
+      p.id === id
+        ? {
+            ...p,
+            ...updates,
+            availability: (updates.availability ?? p.availability) ?? 'Available',
+            updatedAt: new Date().toISOString(),
+          }
+        : p
+    );
+    productsListener.setData(updated);
   } catch {}
 }
 
@@ -447,12 +648,9 @@ export async function deleteProduct(id: string): Promise<void> {
   }
 
   try {
-    const cached = localStorage.getItem('ayra_cache_products');
-    if (cached) {
-      const existing = JSON.parse(cached) as Product[];
-      const updated = existing.filter(p => p.id !== id);
-      localStorage.setItem('ayra_cache_products', JSON.stringify(updated));
-    }
+    const current = productsListener.getData() || [];
+    const updated = current.filter((p) => p.id !== id);
+    productsListener.setData(updated);
   } catch {}
 }
 
@@ -592,86 +790,81 @@ export async function uploadProductImage(
 
 // ---- Advertisement Banner Services ----
 
-export async function getAdvertisementBanners(): Promise<AdvertisementBanner[]> {
-  try {
-    const colRef = collection(db, BANNERS_COL);
-    const snap = await getDocs(colRef);
-    if (snap.empty) {
-      // Seed initial default banners to provide a gorgeous live slider instantly!
-      const initialBannersData: AdvertisementBanner[] = [
-        {
-          id: 'banner-ayra-seed-1',
-          businessId: BUSINESS_ID,
-          imageUrl: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1600&q=80',
-          isActive: true,
-          displayOrder: 0,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: 'banner-ayra-seed-2',
-          businessId: BUSINESS_ID,
-          imageUrl: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1600&q=80',
-          isActive: true,
-          displayOrder: 1,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: 'banner-ayra-seed-3',
-          businessId: BUSINESS_ID,
-          imageUrl: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1600&q=80',
-          isActive: true,
-          displayOrder: 2,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ];
-      await Promise.all(
-        initialBannersData.map(banner => setDoc(doc(db, BANNERS_COL, banner.id), banner))
-      );
-      return initialBannersData;
+export async function getAdvertisementBanners(forceRefresh = false): Promise<AdvertisementBanner[]> {
+  return bannersListener.getOrFetch(async () => {
+    try {
+      const colRef = collection(db, BANNERS_COL);
+      const snap = await getDocs(colRef);
+      if (snap.empty) {
+        // Seed initial default banners to provide a live slider instantly
+        const initialBannersData: AdvertisementBanner[] = [
+          {
+            id: 'banner-ayra-seed-1',
+            businessId: BUSINESS_ID,
+            imageUrl: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1600&q=80',
+            isActive: true,
+            displayOrder: 0,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          {
+            id: 'banner-ayra-seed-2',
+            businessId: BUSINESS_ID,
+            imageUrl: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1600&q=80',
+            isActive: true,
+            displayOrder: 1,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          {
+            id: 'banner-ayra-seed-3',
+            businessId: BUSINESS_ID,
+            imageUrl: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1600&q=80',
+            isActive: true,
+            displayOrder: 2,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        ];
+        await Promise.all(
+          initialBannersData.map(banner => setDoc(doc(db, BANNERS_COL, banner.id), banner))
+        );
+        return initialBannersData;
+      }
+
+      const items = snap.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      })) as AdvertisementBanner[];
+
+      return items.map((item, idx) => ({
+        ...item,
+        displayOrder: typeof item.displayOrder === 'number' ? item.displayOrder : idx,
+      })).sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+    } catch (error) {
+      const errStr = error instanceof Error ? error.message : String(error);
+      const isQuotaOrOffline = 
+        errStr.toLowerCase().includes('quota') || 
+        errStr.toLowerCase().includes('permission') || 
+        errStr.toLowerCase().includes('offline') || 
+        errStr.toLowerCase().includes('unreachable') || 
+        errStr.toLowerCase().includes('resource_exhausted');
+
+      if (isQuotaOrOffline) {
+        isDatabaseQuotaExceeded = true;
+        console.warn('[WARN] Firestore read quota exceeded or unreachable. Using cached banners.', error);
+        return bannersListener.getData() || [];
+      }
+
+      console.error('[ERROR] Error fetching advertisement banners from Firestore:', error);
+      return handleFirestoreError(error, OperationType.LIST, BANNERS_COL);
     }
-
-    const items = snap.docs.map((docSnap) => ({
-      id: docSnap.id,
-      ...docSnap.data(),
-    })) as AdvertisementBanner[];
-
-    // Ensure they have a displayOrder, fallback to index
-    return items.map((item, idx) => ({
-      ...item,
-      displayOrder: typeof item.displayOrder === 'number' ? item.displayOrder : idx,
-    }));
-  } catch (error) {
-    const errStr = error instanceof Error ? error.message : String(error);
-    const isQuotaOrOffline = 
-      errStr.toLowerCase().includes('quota') || 
-      errStr.toLowerCase().includes('permission') || 
-      errStr.toLowerCase().includes('offline') || 
-      errStr.toLowerCase().includes('unreachable') ||
-      errStr.toLowerCase().includes('resource_exhausted');
-
-    if (isQuotaOrOffline) {
-      isDatabaseQuotaExceeded = true;
-      console.warn('[WARN] Firestore read quota exceeded or unreachable. Falling back to local cache or defaults.', error);
-      try {
-        const cached = localStorage.getItem('ayra_cache_banners');
-        if (cached) {
-          return JSON.parse(cached) as AdvertisementBanner[];
-        }
-      } catch {}
-      return [];
-    }
-
-    console.error('[ERROR] Error fetching advertisement banners from Firestore:', error);
-    return handleFirestoreError(error, OperationType.LIST, BANNERS_COL);
-  }
+  }, forceRefresh);
 }
 
 export async function saveAdvertisementBanner(imageUrl: string): Promise<AdvertisementBanner> {
   try {
-    const banners = await getAdvertisementBanners();
+    const banners = bannersListener.getData() || [];
     const displayOrder = banners.length;
     const bannerId = `banner-ayra-${Date.now()}`;
     const newBanner: AdvertisementBanner = {
@@ -686,6 +879,7 @@ export async function saveAdvertisementBanner(imageUrl: string): Promise<Adverti
 
     const newDocRef = doc(db, BANNERS_COL, bannerId);
     await setDoc(newDocRef, newBanner);
+    bannersListener.setData([...banners, newBanner]);
     return newBanner;
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `${BANNERS_COL}/new`);
@@ -708,6 +902,9 @@ export async function addAdvertisementBanner(imageUrl: string, displayOrder: num
 
     const newDocRef = doc(db, BANNERS_COL, bannerId);
     await setDoc(newDocRef, newBanner);
+    const current = bannersListener.getData() || [];
+    const updated = [...current.filter(b => b.id !== bannerId), newBanner].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+    bannersListener.setData(updated);
     return newBanner;
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `${BANNERS_COL}/${Date.now()}`);
@@ -722,6 +919,9 @@ export async function updateAdvertisementBanner(id: string, updates: Partial<Adv
       ...updates,
       updatedAt: new Date().toISOString(),
     });
+    const current = bannersListener.getData() || [];
+    const updated = current.map(b => (b.id === id ? { ...b, ...updates, updatedAt: new Date().toISOString() } : b));
+    bannersListener.setData(updated);
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `${BANNERS_COL}/${id}`);
   }
@@ -729,6 +929,12 @@ export async function updateAdvertisementBanner(id: string, updates: Partial<Adv
 
 export async function updateBannersOrder(orderedBanners: { id: string; displayOrder: number }[]): Promise<void> {
   try {
+    const current = bannersListener.getData() || [];
+    const orderMap = new Map(orderedBanners.map(o => [o.id, o.displayOrder]));
+    const updated = current.map(b => orderMap.has(b.id) ? { ...b, displayOrder: orderMap.get(b.id)! } : b)
+      .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+    bannersListener.setData(updated);
+
     for (const b of orderedBanners) {
       const docRef = doc(db, BANNERS_COL, b.id);
       await updateDoc(docRef, {
@@ -745,6 +951,8 @@ export async function deleteAdvertisementBanner(id: string): Promise<void> {
   try {
     const docRef = doc(db, BANNERS_COL, id);
     await deleteDoc(docRef);
+    const current = bannersListener.getData() || [];
+    bannersListener.setData(current.filter(b => b.id !== id));
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `${BANNERS_COL}/${id}`);
   }
