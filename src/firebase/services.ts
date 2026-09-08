@@ -22,6 +22,28 @@ const PRODUCTS_COL = 'products';
 const BANNERS_COL = 'advertisementBanners';
 
 export let isDatabaseQuotaExceeded = false;
+const quotaListeners = new Set<(isExceeded: boolean) => void>();
+
+export function onQuotaStatusChange(callback: (isExceeded: boolean) => void): Unsubscribe {
+  quotaListeners.add(callback);
+  callback(isDatabaseQuotaExceeded);
+  return () => {
+    quotaListeners.delete(callback);
+  };
+}
+
+export function setDatabaseQuotaExceeded(exceeded: boolean) {
+  if (isDatabaseQuotaExceeded !== exceeded) {
+    isDatabaseQuotaExceeded = exceeded;
+    quotaListeners.forEach((cb) => {
+      try {
+        cb(exceeded);
+      } catch (err) {
+        console.error('Quota listener callback error:', err);
+      }
+    });
+  }
+}
 
 // ---- Single Collection & Document Listener Manager ----
 // Prevents duplicate Firestore subscriptions, avoids redundant getDocs reads,
@@ -99,8 +121,26 @@ class SingleCollectionListener<T> {
       }
     }
 
-    // Connect to Firestore onSnapshot only once
-    if (!this.unsubscribeFirestore) {
+    // Connect to Firestore onSnapshot only once across the whole app
+    this.ensureFirestoreListener();
+
+    return () => {
+      this.subscribers.delete(onUpdate);
+      if (onError) this.errorSubscribers.delete(onError);
+
+      if (this.subscribers.size === 0 && this.unsubscribeFirestore) {
+        try {
+          this.unsubscribeFirestore();
+        } catch {}
+        this.unsubscribeFirestore = null;
+      }
+    };
+  }
+
+  ensureFirestoreListener() {
+    if (this.unsubscribeFirestore) return;
+
+    try {
       const targetRef = this.isDocument
         ? doc(db, this.colName, this.docId!)
         : collection(db, this.colName);
@@ -112,9 +152,14 @@ class SingleCollectionListener<T> {
             const transformed = this.transform(snap);
             this.cachedData = transformed;
             this.lastFetchTime = Date.now();
+
+            // Automatic recovery: successful read clears quota exceeded status immediately
+            setDatabaseQuotaExceeded(false);
+
             try {
               localStorage.setItem(this.cacheKey, JSON.stringify(transformed));
             } catch {}
+
             this.subscribers.forEach((cb) => {
               try {
                 cb(transformed);
@@ -127,17 +172,23 @@ class SingleCollectionListener<T> {
           }
         },
         (error: Error) => {
+          // In Firestore SDK, once onSnapshot errors, Firestore shuts down the listener
+          this.unsubscribeFirestore = null;
+
           const errStr = error?.message || String(error);
-          if (
+          const isQuota =
             errStr.toLowerCase().includes('quota') ||
             errStr.toLowerCase().includes('resource_exhausted') ||
-            errStr.toLowerCase().includes('permission') ||
-            errStr.toLowerCase().includes('offline') ||
-            errStr.toLowerCase().includes('unreachable')
-          ) {
-            isDatabaseQuotaExceeded = true;
-            console.warn(`[SingleListener ${this.colName}] Quota or network issue. Relying on local cache.`, error);
+            errStr.toLowerCase().includes('resource-exhausted') ||
+            (error as any)?.code === 'resource-exhausted';
+
+          if (isQuota) {
+            setDatabaseQuotaExceeded(true);
+            console.warn(`[SingleListener ${this.colName}] Firestore read quota exceeded. Operating in offline cache mode.`);
+          } else {
+            console.warn(`[SingleListener ${this.colName}] Real-time listener notice:`, error);
           }
+
           this.errorSubscribers.forEach((cb) => {
             try {
               cb(error);
@@ -147,32 +198,55 @@ class SingleCollectionListener<T> {
           });
         }
       );
+    } catch (err) {
+      this.unsubscribeFirestore = null;
+      console.warn(`[SingleListener ${this.colName}] Failed to attach onSnapshot:`, err);
     }
+  }
 
-    return () => {
-      this.subscribers.delete(onUpdate);
-      if (onError) this.errorSubscribers.delete(onError);
-
-      if (this.subscribers.size === 0 && this.unsubscribeFirestore) {
+  reconnect() {
+    if (this.unsubscribeFirestore) {
+      try {
         this.unsubscribeFirestore();
-        this.unsubscribeFirestore = null;
-      }
-    };
+      } catch {}
+      this.unsubscribeFirestore = null;
+    }
+    this.ensureFirestoreListener();
   }
 
   async getOrFetch(fetcher: () => Promise<T>, forceRefresh = false, ttlMs = 180000): Promise<T> {
-    // If listener is active or cached data is fresh within TTL, return cached data without querying Firestore
-    if (!forceRefresh && this.cachedData !== null) {
-      if (this.unsubscribeFirestore || Date.now() - this.lastFetchTime < ttlMs) {
-        return this.cachedData;
-      }
+    // 1. If active listener exists and we have data, use the real-time cached data (0 reads!)
+    if (this.unsubscribeFirestore && this.cachedData !== null) {
+      return this.cachedData;
+    }
+
+    // 2. If quota is known to be exceeded and we have local cache, return it immediately without failing network calls
+    if (isDatabaseQuotaExceeded && this.cachedData !== null) {
+      return this.cachedData;
+    }
+
+    // 3. If cache is fresh within TTL and forceRefresh is false, return cached data
+    if (!forceRefresh && this.cachedData !== null && Date.now() - this.lastFetchTime < ttlMs) {
+      return this.cachedData;
     }
 
     try {
       const fresh = await fetcher();
       this.setData(fresh);
+      setDatabaseQuotaExceeded(false);
       return fresh;
     } catch (err) {
+      const errStr = err instanceof Error ? err.message : String(err);
+      const isQuota =
+        errStr.toLowerCase().includes('quota') ||
+        errStr.toLowerCase().includes('resource_exhausted') ||
+        errStr.toLowerCase().includes('resource-exhausted') ||
+        (err as any)?.code === 'resource-exhausted';
+
+      if (isQuota) {
+        setDatabaseQuotaExceeded(true);
+      }
+
       if (this.cachedData !== null) {
         return this.cachedData;
       }
@@ -269,6 +343,13 @@ const bannersListener = new SingleCollectionListener<AdvertisementBanner[]>({
   },
 });
 
+export function reconnectAllListeners() {
+  profileListener.reconnect();
+  categoriesListener.reconnect();
+  productsListener.reconnect();
+  bannersListener.reconnect();
+}
+
 // ---- Business Profile Services ----
 
 export async function getBusinessProfile(forceRefresh = false): Promise<BusinessProfile> {
@@ -289,16 +370,15 @@ export async function getBusinessProfile(forceRefresh = false): Promise<Business
       }
     } catch (error) {
       const errStr = error instanceof Error ? error.message : String(error);
-      const isQuotaOrOffline =
+      const isQuota =
         errStr.toLowerCase().includes('quota') ||
-        errStr.toLowerCase().includes('permission') ||
-        errStr.toLowerCase().includes('offline') ||
-        errStr.toLowerCase().includes('unreachable') ||
-        errStr.toLowerCase().includes('resource_exhausted');
+        errStr.toLowerCase().includes('resource_exhausted') ||
+        errStr.toLowerCase().includes('resource-exhausted') ||
+        (error as any)?.code === 'resource-exhausted';
 
-      if (isQuotaOrOffline) {
-        isDatabaseQuotaExceeded = true;
-        console.warn('[WARN] Firestore read quota exceeded or unreachable. Using cached profile.');
+      if (isQuota) {
+        setDatabaseQuotaExceeded(true);
+        console.warn('[WARN] Firestore read quota exceeded. Using cached profile.');
         return profileListener.getData() || DEFAULT_BUSINESS_PROFILE;
       }
 
@@ -353,16 +433,15 @@ export async function getCategories(forceRefresh = false): Promise<Category[]> {
       })) as Category[];
     } catch (error) {
       const errStr = error instanceof Error ? error.message : String(error);
-      const isQuotaOrOffline =
+      const isQuota =
         errStr.toLowerCase().includes('quota') ||
-        errStr.toLowerCase().includes('permission') ||
-        errStr.toLowerCase().includes('offline') ||
-        errStr.toLowerCase().includes('unreachable') ||
-        errStr.toLowerCase().includes('resource_exhausted');
+        errStr.toLowerCase().includes('resource_exhausted') ||
+        errStr.toLowerCase().includes('resource-exhausted') ||
+        (error as any)?.code === 'resource-exhausted';
 
-      if (isQuotaOrOffline) {
-        isDatabaseQuotaExceeded = true;
-        console.warn('[WARN] Firestore read quota exceeded or unreachable. Using cached categories.');
+      if (isQuota) {
+        setDatabaseQuotaExceeded(true);
+        console.warn('[WARN] Firestore read quota exceeded. Using cached categories.');
         return (
           categoriesListener.getData() ||
           INITIAL_CATEGORIES.map((c) => ({
@@ -524,16 +603,15 @@ export async function getProducts(forceRefresh = false): Promise<Product[]> {
       );
     } catch (error) {
       const errStr = error instanceof Error ? error.message : String(error);
-      const isQuotaOrOffline =
+      const isQuota =
         errStr.toLowerCase().includes('quota') ||
-        errStr.toLowerCase().includes('permission') ||
-        errStr.toLowerCase().includes('offline') ||
-        errStr.toLowerCase().includes('unreachable') ||
-        errStr.toLowerCase().includes('resource_exhausted');
+        errStr.toLowerCase().includes('resource_exhausted') ||
+        errStr.toLowerCase().includes('resource-exhausted') ||
+        (error as any)?.code === 'resource-exhausted';
 
-      if (isQuotaOrOffline) {
-        isDatabaseQuotaExceeded = true;
-        console.warn('[WARN] Firestore read quota exceeded or unreachable. Using cached products.');
+      if (isQuota) {
+        setDatabaseQuotaExceeded(true);
+        console.warn('[WARN] Firestore read quota exceeded. Using cached products.');
         return (
           productsListener.getData() ||
           INITIAL_PRODUCTS.map((p) => ({
@@ -843,16 +921,15 @@ export async function getAdvertisementBanners(forceRefresh = false): Promise<Adv
       })).sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
     } catch (error) {
       const errStr = error instanceof Error ? error.message : String(error);
-      const isQuotaOrOffline = 
+      const isQuota = 
         errStr.toLowerCase().includes('quota') || 
-        errStr.toLowerCase().includes('permission') || 
-        errStr.toLowerCase().includes('offline') || 
-        errStr.toLowerCase().includes('unreachable') || 
-        errStr.toLowerCase().includes('resource_exhausted');
+        errStr.toLowerCase().includes('resource_exhausted') || 
+        errStr.toLowerCase().includes('resource-exhausted') || 
+        (error as any)?.code === 'resource-exhausted';
 
-      if (isQuotaOrOffline) {
-        isDatabaseQuotaExceeded = true;
-        console.warn('[WARN] Firestore read quota exceeded or unreachable. Using cached banners.', error);
+      if (isQuota) {
+        setDatabaseQuotaExceeded(true);
+        console.warn('[WARN] Firestore read quota exceeded. Using cached banners.');
         return bannersListener.getData() || [];
       }
 

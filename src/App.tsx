@@ -16,6 +16,8 @@ import {
   getAdvertisementBanners,
   deleteAdvertisementBanner,
   isDatabaseQuotaExceeded,
+  onQuotaStatusChange,
+  reconnectAllListeners,
   subscribeToProducts,
   subscribeToBanners,
   subscribeToCategories,
@@ -142,6 +144,13 @@ export default function App() {
     );
   }, [currentUser]);
 
+  // Automatically listen to quota status changes across all collection listeners
+  useEffect(() => {
+    return onQuotaStatusChange((exceeded) => {
+      setIsQuotaExceeded(exceeded);
+    });
+  }, []);
+
   // Manual refresh / retry handler
   const loadCatalogueData = useCallback(async (forceLoading = false) => {
     let hasCache = false;
@@ -154,11 +163,14 @@ export default function App() {
     }
     setHasError(false);
     try {
+      if (forceLoading) {
+        reconnectAllListeners();
+      }
       const [profileData, categoriesData, productsData, bannersData] = await Promise.all([
-        getBusinessProfile(true),
-        getCategories(true),
-        getProducts(true),
-        getAdvertisementBanners(true),
+        getBusinessProfile(forceLoading),
+        getCategories(forceLoading),
+        getProducts(forceLoading),
+        getAdvertisementBanners(forceLoading),
       ]);
       const updatedProfile = {
         ...profileData,
@@ -176,16 +188,14 @@ export default function App() {
       if (!isDatabaseQuotaExceeded || !hasCache) {
         setCachedData('products', productsData);
       }
-
-      if (isDatabaseQuotaExceeded) {
-        setIsQuotaExceeded(true);
-      } else {
-        setIsQuotaExceeded(false);
-      }
     } catch (err) {
       console.error('Error refreshing catalogue data:', err);
       const errStr = String(err instanceof Error ? err.message : err);
-      if (errStr.toLowerCase().includes('quota') || errStr.toLowerCase().includes('resource_exhausted')) {
+      if (
+        errStr.toLowerCase().includes('quota') ||
+        errStr.toLowerCase().includes('resource_exhausted') ||
+        errStr.toLowerCase().includes('resource-exhausted')
+      ) {
         setIsQuotaExceeded(true);
       }
       if (!hasCache) {
@@ -209,7 +219,11 @@ export default function App() {
       },
       (error) => {
         const errStr = String(error?.message || error);
-        if (errStr.toLowerCase().includes('quota') || errStr.toLowerCase().includes('resource_exhausted')) {
+        if (
+          errStr.toLowerCase().includes('quota') ||
+          errStr.toLowerCase().includes('resource_exhausted') ||
+          errStr.toLowerCase().includes('resource-exhausted')
+        ) {
           setIsQuotaExceeded(true);
         }
         setIsLoadingData(false);
@@ -440,7 +454,7 @@ export default function App() {
         availability: p.availability,
       });
     }
-    await loadCatalogueData(true);
+    await loadCatalogueData(false);
   };
 
   // Share Catalogue Handler
@@ -605,7 +619,7 @@ export default function App() {
             onShowToast={showToast}
             isLoading={isLoadingData}
             hasError={hasError}
-            onRetry={loadCatalogueData}
+            onRetry={() => loadCatalogueData(true)}
           />
         )}
 
