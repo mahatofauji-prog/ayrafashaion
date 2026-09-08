@@ -526,7 +526,7 @@ export const CatalogueView: React.FC<CatalogueViewProps> = ({
               <p className="flex items-center justify-center md:justify-start gap-1.5"><span className="text-sm">👗</span> Women • Men • Kids</p>
               <p className="flex items-center justify-center md:justify-start gap-1.5"><span className="text-sm">🧵</span> Ethnic • Western • Mekhela Sador</p>
               <p className="flex items-center justify-center md:justify-start gap-1.5"><span className="text-sm">👟</span> Footwear • Accessories</p>
-              <p className="text-[#F1D77A]/90 font-serif italic tracking-wider">✨ Styles That Speak You.</p>
+              <p className="text-[#F1D77A]/90 font-serif italic tracking-wider">✨ Style That Speak You</p>
             </div>
           </div>
 

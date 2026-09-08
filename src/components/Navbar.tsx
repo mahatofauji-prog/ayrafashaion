@@ -42,7 +42,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="flex items-center space-x-2">
             <span className="inline-block w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse"></span>
             <BrandName name={businessProfile.businessName} className="font-bold tracking-[0.14em] text-xs" />
-            <span className="text-zinc-400">• ✨ Styles That Speak You</span>
+            <span className="text-zinc-400">• ✨ Style That Speak You</span>
           </div>
 
           <div className="flex items-center space-x-4">
@@ -92,7 +92,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               />
               {!isAdminView && (
                 <span className="text-[9px] min-[330px]:text-[9.5px] text-[#D4AF37] tracking-wide font-medium whitespace-nowrap leading-none mt-1">
-                  ✨ Styles That Speak You
+                  ✨ Style That Speak You
                 </span>
               )}
             </div>
@@ -201,7 +201,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               ) : (
                 <div className="mt-0.5 leading-tight">
                   <span className="text-[11px] sm:text-xs text-[#D4AF37] font-medium tracking-wider">
-                    ✨ Styles That Speak You
+                    ✨ Style That Speak You
                   </span>
                 </div>
               )}
