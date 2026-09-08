@@ -211,10 +211,14 @@ export function subscribeToProducts(
   return onSnapshot(
     colRef,
     (snap) => {
-      const items = snap.docs.map((docSnap) => ({
-        id: docSnap.id,
-        ...docSnap.data(),
-      })) as Product[];
+      const items = snap.docs.map((docSnap) => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          ...data,
+          availability: data.availability ?? 'Available',
+        };
+      }) as Product[];
       items.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
       onUpdate(items);
     },
@@ -302,10 +306,14 @@ export async function getProducts(): Promise<Product[]> {
       return seededProducts;
     }
 
-    const items = snap.docs.map(docSnap => ({
-      id: docSnap.id,
-      ...docSnap.data(),
-    })) as Product[];
+    const items = snap.docs.map(docSnap => {
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        ...data,
+        availability: data.availability ?? 'Available',
+      };
+    }) as Product[];
 
     // Sort by createdAt descending
     return items.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
@@ -344,20 +352,31 @@ export async function getProducts(): Promise<Product[]> {
 
 export async function addProduct(product: Omit<Product, 'id' | 'businessId' | 'createdAt' | 'updatedAt'>): Promise<Product> {
   const id = `prod-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+  const validAvailability: AvailabilityStatus = product.availability ?? 'Available';
   const newProduct: Product = {
     ...product,
     id,
     businessId: BUSINESS_ID,
-    name: product.name.trim(),
-    price: Number(product.price),
+    name: product.name?.trim() || '',
+    price: Number(product.price) || 0,
     description: product.description?.trim() || '',
+    availability: validAvailability,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
 
+  // Strip undefined fields defensively so Firestore never rejects the payload
+  const firestoreData: Record<string, any> = {};
+  for (const [key, value] of Object.entries(newProduct)) {
+    if (value !== undefined) {
+      firestoreData[key] = value;
+    }
+  }
+  firestoreData.availability = validAvailability;
+
   try {
-    console.log('[DEBUG] Writing product document to shared Firestore:', id, newProduct);
-    await setDoc(doc(db, PRODUCTS_COL, id), newProduct);
+    console.log('[DEBUG] Writing product document to shared Firestore:', id, firestoreData);
+    await setDoc(doc(db, PRODUCTS_COL, id), firestoreData);
     console.log('[DEBUG] Shared Firestore product write successful!');
   } catch (error) {
     console.error('[ERROR] Firestore product write failed:', error);
@@ -377,12 +396,25 @@ export async function addProduct(product: Omit<Product, 'id' | 'businessId' | 'c
 
 export async function updateProduct(id: string, updates: Partial<Product>): Promise<void> {
   try {
-    console.log('[DEBUG] Updating product document in shared Firestore:', id, updates);
-    const prodRef = doc(db, PRODUCTS_COL, id);
-    await updateDoc(prodRef, {
-      ...updates,
+    const sanitizedUpdates: Record<string, any> = {
       updatedAt: new Date().toISOString(),
-    });
+    };
+
+    // Strip undefined fields so Firestore never throws unsupported field value undefined
+    for (const [key, value] of Object.entries(updates)) {
+      if (value !== undefined) {
+        sanitizedUpdates[key] = value;
+      }
+    }
+
+    // If availability was passed in updates or was undefined, ensure a valid fallback
+    if ('availability' in updates) {
+      sanitizedUpdates.availability = updates.availability ?? 'Available';
+    }
+
+    console.log('[DEBUG] Updating product document in shared Firestore:', id, sanitizedUpdates);
+    const prodRef = doc(db, PRODUCTS_COL, id);
+    await updateDoc(prodRef, sanitizedUpdates);
     console.log('[DEBUG] Shared Firestore product update successful!');
   } catch (error) {
     console.error('[ERROR] Firestore product update failed:', error);
@@ -393,7 +425,12 @@ export async function updateProduct(id: string, updates: Partial<Product>): Prom
     const cached = localStorage.getItem('ayra_cache_products');
     if (cached) {
       const existing = JSON.parse(cached) as Product[];
-      const updated = existing.map(p => p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p);
+      const updated = existing.map(p => p.id === id ? { 
+        ...p, 
+        ...updates, 
+        availability: (updates.availability ?? p.availability) ?? 'Available',
+        updatedAt: new Date().toISOString() 
+      } : p);
       localStorage.setItem('ayra_cache_products', JSON.stringify(updated));
     }
   } catch {}

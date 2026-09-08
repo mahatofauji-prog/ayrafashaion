@@ -65,7 +65,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setPrice(productToEdit.price);
       setCategoryId(productToEdit.categoryId);
       setDescription(productToEdit.description || '');
-      setAvailability(productToEdit.availability);
+      setAvailability(productToEdit.availability ?? 'Available');
       setImageUrl(productToEdit.imageUrl);
     } else {
       setName('');
@@ -170,7 +170,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         categoryName,
         imageUrl,
         description: description.trim(),
-        availability,
+        availability: availability ?? 'Available',
       });
       onClose();
     } catch (err: any) {

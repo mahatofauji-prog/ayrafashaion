@@ -22,7 +22,7 @@ import {
   subscribeToBusinessProfile,
 } from './firebase/services';
 import { DEFAULT_BUSINESS_PROFILE, INITIAL_CATEGORIES, INITIAL_PRODUCTS } from './firebase/seed';
-import { BusinessProfile, Category, Product, AdvertisementBanner } from './types';
+import { BusinessProfile, Category, Product, AdvertisementBanner, AvailabilityStatus } from './types';
 import { Navbar } from './components/Navbar';
 import { CatalogueView } from './components/public/CatalogueView';
 import { AdminLogin } from './components/admin/AdminLogin';
@@ -248,7 +248,10 @@ export default function App() {
   };
 
   const handleOpenEditProduct = (product: Product) => {
-    setProductToEdit(product);
+    setProductToEdit({
+      ...product,
+      availability: product.availability ?? 'Available',
+    });
     setIsProductModalOpen(true);
   };
 
@@ -256,11 +259,15 @@ export default function App() {
     productData: Omit<Product, 'id' | 'businessId' | 'createdAt' | 'updatedAt'>
   ) => {
     try {
+      const sanitizedProductData = {
+        ...productData,
+        availability: (productData.availability === 'Out of Stock' ? 'Out of Stock' : 'Available') as AvailabilityStatus,
+      };
       if (productToEdit) {
-        await updateProduct(productToEdit.id, productData);
+        await updateProduct(productToEdit.id, sanitizedProductData);
         showToast('Product updated successfully.', 'success');
       } else {
-        await addProduct(productData);
+        await addProduct(sanitizedProductData);
         showToast('Product added successfully.', 'success');
       }
       await loadCatalogueData(true);
