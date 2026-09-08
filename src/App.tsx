@@ -64,7 +64,32 @@ const setCachedData = (key: string, value: any) => {
 };
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<ViewMode>('catalogue');
+  const [currentView, setCurrentView] = useState<ViewMode>(() => {
+    if (typeof window === 'undefined') return 'catalogue';
+    const path = window.location.pathname.toLowerCase().replace(/\/+$/, '') || '/';
+    if (
+      path === '/ayradmin2026' ||
+      path.startsWith('/ayradmin2026/') ||
+      path === '/ayradmin' ||
+      path.startsWith('/ayradmin/')
+    ) {
+      const isAuth = typeof window !== 'undefined' && localStorage.getItem('ayra_admin_session') === 'true';
+      if (!isAuth) return 'admin-login';
+      if (path === '/ayradmin2026/products' || path === '/ayradmin/products') return 'admin-products';
+      if (path === '/ayradmin2026/categories' || path === '/ayradmin/categories') return 'admin-categories';
+      if (path === '/ayradmin2026/settings' || path === '/ayradmin/settings') return 'admin-settings';
+      if (
+        path === '/ayradmin2026/advertisement' ||
+        path === '/ayradmin2026/banners' ||
+        path === '/ayradmin/advertisement' ||
+        path === '/ayradmin/banners'
+      ) {
+        return 'admin-banners';
+      }
+      return 'admin-dashboard';
+    }
+    return 'catalogue';
+  });
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authInitialized, setAuthInitialized] = useState(false);
 
@@ -486,24 +511,24 @@ export default function App() {
     setCurrentUser(null);
     showToast('Signed out of admin portal.', 'info');
     setCurrentView('admin-login');
-    window.history.replaceState({}, '', '/ayradmin');
+    window.history.replaceState({}, '', '/ayradmin2026');
   };
 
   // Path to View mapping
   const getPathFromView = (view: ViewMode): string => {
     switch (view) {
       case 'admin-login':
-        return '/ayradmin';
+        return '/ayradmin2026';
       case 'admin-dashboard':
-        return '/ayradmin/dashboard';
+        return '/ayradmin2026/dashboard';
       case 'admin-products':
-        return '/ayradmin/products';
+        return '/ayradmin2026/products';
       case 'admin-categories':
-        return '/ayradmin/categories';
+        return '/ayradmin2026/categories';
       case 'admin-settings':
-        return '/ayradmin/settings';
+        return '/ayradmin2026/settings';
       case 'admin-banners':
-        return '/ayradmin/advertisement';
+        return '/ayradmin2026/advertisement';
       case 'catalogue':
       default:
         return '/';
@@ -512,7 +537,9 @@ export default function App() {
 
   const syncUrlForView = (view: ViewMode, replace: boolean = false) => {
     const targetPath = getPathFromView(view);
-    if (window.location.pathname !== targetPath) {
+    const currentNormalized = window.location.pathname.toLowerCase().replace(/\/+$/, '') || '/';
+    const targetNormalized = targetPath.toLowerCase().replace(/\/+$/, '') || '/';
+    if (currentNormalized !== targetNormalized) {
       if (replace) {
         window.history.replaceState({}, '', targetPath);
       } else {
@@ -523,29 +550,39 @@ export default function App() {
 
   // Sync state from current browser pathname
   const syncViewFromLocation = useCallback((isAuthenticated: boolean) => {
-    const path = window.location.pathname.toLowerCase().replace(/\/$/, '');
+    const rawPath = window.location.pathname.toLowerCase();
+    const path = rawPath.replace(/\/+$/, '') || '/';
 
-    if (path === '/ayradmin' || path.startsWith('/ayradmin/')) {
+    if (path === '/ayradmin2026' || path.startsWith('/ayradmin2026/')) {
       if (!isAuthenticated) {
         setCurrentView('admin-login');
-        if (path !== '/ayradmin') {
-          window.history.replaceState({}, '', '/ayradmin');
+        if (path !== '/ayradmin2026') {
+          window.history.replaceState({}, '', '/ayradmin2026');
         }
       } else {
-        if (path === '/ayradmin/products') {
+        if (path === '/ayradmin2026/products') {
           setCurrentView('admin-products');
-        } else if (path === '/ayradmin/categories') {
+        } else if (path === '/ayradmin2026/categories') {
           setCurrentView('admin-categories');
-        } else if (path === '/ayradmin/settings') {
+        } else if (path === '/ayradmin2026/settings') {
           setCurrentView('admin-settings');
-        } else if (path === '/ayradmin/advertisement' || path === '/ayradmin/banners') {
+        } else if (path === '/ayradmin2026/advertisement' || path === '/ayradmin2026/banners') {
           setCurrentView('admin-banners');
         } else {
           setCurrentView('admin-dashboard');
-          if (path !== '/ayradmin/dashboard') {
-            window.history.replaceState({}, '', '/ayradmin/dashboard');
+          if (path !== '/ayradmin2026/dashboard') {
+            window.history.replaceState({}, '', '/ayradmin2026/dashboard');
           }
         }
+      }
+    } else if (path === '/ayradmin' || path.startsWith('/ayradmin/')) {
+      // Graceful fallback for legacy URLs -> forward to /ayradmin2026
+      if (!isAuthenticated) {
+        setCurrentView('admin-login');
+        window.history.replaceState({}, '', '/ayradmin2026');
+      } else {
+        setCurrentView('admin-dashboard');
+        window.history.replaceState({}, '', '/ayradmin2026/dashboard');
       }
     } else {
       setCurrentView('catalogue');
