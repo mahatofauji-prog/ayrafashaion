@@ -48,13 +48,17 @@ export interface AdvertisementBanner {
   displayOrder: number;
 }
 
-export interface FirestoreErrorInfo {
+export interface SupabaseErrorInfo {
   error: string;
   operationType: string;
-  path: string | null;
-  authInfo: {
+  table?: string | null;
+  path?: string | null;
+  authInfo?: {
     userId?: string | null;
     email?: string | null;
     emailVerified?: boolean | null;
   };
 }
+
+// Deprecated: Kept for migration backwards-compatibility
+export type FirestoreErrorInfo = SupabaseErrorInfo;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { onAuthStateChanged, signOut, User } from 'firebase/auth';
-import { auth } from './firebase/config';
+import { supabase, isSupabaseConfigured } from './supabase/config';
+import type { User } from '@supabase/supabase-js';
 import {
   getBusinessProfile,
   updateBusinessProfile,
@@ -22,8 +22,8 @@ import {
   subscribeToBanners,
   subscribeToCategories,
   subscribeToBusinessProfile,
-} from './firebase/services';
-import { DEFAULT_BUSINESS_PROFILE, INITIAL_CATEGORIES, INITIAL_PRODUCTS } from './firebase/seed';
+} from './supabase/services';
+import { DEFAULT_BUSINESS_PROFILE, INITIAL_CATEGORIES, INITIAL_PRODUCTS } from './supabase/seed';
 import { BusinessProfile, Category, Product, AdvertisementBanner, AvailabilityStatus } from './types';
 import { Navbar } from './components/Navbar';
 import { CatalogueView } from './components/public/CatalogueView';
@@ -152,20 +152,36 @@ export default function App() {
 
   // Auth Observer
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user);
-      if (user) {
+    if (!isSupabaseConfigured) {
+      setAuthInitialized(true);
+      return;
+    }
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setCurrentUser(session?.user ?? null);
+      if (session?.user) {
         localStorage.setItem('ayra_admin_session', 'true');
       }
       setAuthInitialized(true);
     });
-    return () => unsubscribe();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUser(session?.user ?? null);
+      if (session?.user) {
+        localStorage.setItem('ayra_admin_session', 'true');
+      }
+      setAuthInitialized(true);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Persistent Auth Session Check
   const checkIsAdminAuthenticated = useCallback(() => {
     return Boolean(
-      currentUser || auth.currentUser || localStorage.getItem('ayra_admin_session') === 'true'
+      currentUser || localStorage.getItem('ayra_admin_session') === 'true'
     );
   }, [currentUser]);
 
@@ -504,7 +520,9 @@ export default function App() {
     setIsProductModalOpen(false);
     localStorage.removeItem('ayra_admin_session');
     try {
-      await signOut(auth);
+      if (isSupabaseConfigured) {
+        await supabase.auth.signOut();
+      }
     } catch (err) {
       console.error('Logout error:', err);
     }

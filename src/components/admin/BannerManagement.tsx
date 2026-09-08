@@ -21,7 +21,7 @@ import {
   updateAdvertisementBanner,
   updateBannersOrder,
   deleteAdvertisementBanner,
-} from '../../firebase/services';
+} from '../../supabase/services';
 
 interface BannerManagementProps {
   banners: AdvertisementBanner[];
@@ -331,7 +331,7 @@ export const BannerManagement: React.FC<BannerManagementProps> = ({
                 {isUploading && (
                   <div className="space-y-1.5">
                     <div className="flex justify-between text-[11px] font-bold text-[#D4AF37]">
-                      <span>Uploading to Firebase...</span>
+                      <span>Uploading banner to storage...</span>
                       <span>{uploadProgress}%</span>
                     </div>
                     <div className="w-full h-1.5 rounded-full bg-[#1A1A1A] overflow-hidden">

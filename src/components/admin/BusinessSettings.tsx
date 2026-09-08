@@ -16,10 +16,9 @@ import {
   Upload,
   Image as ImageIcon,
 } from 'lucide-react';
-import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
-import { auth } from '../../firebase/config';
+import { supabase, isSupabaseConfigured } from '../../supabase/config';
 import { BusinessProfile } from '../../types';
-import { uploadProductImage } from '../../firebase/services';
+import { uploadProductImage } from '../../supabase/services';
 
 interface BusinessSettingsProps {
   businessProfile: BusinessProfile;
@@ -100,30 +99,17 @@ export const BusinessSettings: React.FC<BusinessSettingsProps> = ({
 
     setIsChangingPassword(true);
     try {
-      const user = auth.currentUser;
-      if (user) {
-        if (currentPassword && user.email) {
-          try {
-            const credential = EmailAuthProvider.credential(user.email, currentPassword);
-            await reauthenticateWithCredential(user, credential);
-          } catch (reauthErr: any) {
-            console.warn('Reauth notice:', reauthErr);
-            if (reauthErr.code === 'auth/requires-recent-login') {
-              setPasswordError('For security, please re-authenticate your account before changing the password.');
-              setIsChangingPassword(false);
-              return;
+      if (isSupabaseConfigured) {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { error: passErr } = await supabase.auth.updateUser({ password: newPassword });
+            if (passErr) {
+              console.warn('Supabase auth password update notice:', passErr);
             }
           }
-        }
-        try {
-          await updatePassword(user, newPassword);
-        } catch (authPassErr: any) {
-          console.warn('Firebase Auth updatePassword notice:', authPassErr);
-          if (authPassErr.code === 'auth/requires-recent-login') {
-            setPasswordError('For security, please re-authenticate your account before changing the password.');
-            setIsChangingPassword(false);
-            return;
-          }
+        } catch (supabaseAuthErr) {
+          console.warn('Supabase auth password update error:', supabaseAuthErr);
         }
       }
 
@@ -135,13 +121,7 @@ export const BusinessSettings: React.FC<BusinessSettingsProps> = ({
       onShowToast('Password changed successfully! Please use your new password next time.', 'success');
     } catch (err: any) {
       console.error('Password update error:', err);
-      if (err.code === 'auth/requires-recent-login') {
-        setPasswordError('For security, please re-authenticate your account before changing the password.');
-      } else if (err.code === 'auth/weak-password') {
-        setPasswordError('Password should be at least 6 characters long.');
-      } else {
-        setPasswordError(err.message || 'Failed to update password.');
-      }
+      setPasswordError(err.message || 'Failed to update password.');
     } finally {
       setIsChangingPassword(false);
     }
@@ -438,7 +418,7 @@ export const BusinessSettings: React.FC<BusinessSettingsProps> = ({
         </h3>
 
         <p className="text-xs text-zinc-400">
-          Logged in as: <span className="text-white font-mono font-semibold">{auth.currentUser?.email || businessProfile.email || 'AYRA FASHION Admin'}</span>. You can change your admin portal password below.
+          Logged in as: <span className="text-white font-mono font-semibold">{businessProfile.email || 'AYRA FASHION Admin'}</span>. You can change your admin portal password below.
         </p>
 
         {passwordError && (

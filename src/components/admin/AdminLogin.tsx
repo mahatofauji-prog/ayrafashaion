@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Lock, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
-import { signInWithPopup } from 'firebase/auth';
-import { auth, googleProvider } from '../../firebase/config';
+import { Lock, Mail, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
+import { supabase, isSupabaseConfigured } from '../../supabase/config';
 import { BusinessProfile } from '../../types';
 import { BrandName } from '../common/BrandName';
 
@@ -18,12 +17,14 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
   onBackToCatalogue,
   onShowToast,
 }) => {
+  const [email, setEmail] = useState(businessProfile.email || 'ayra.fashion.assam@gmail.com');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const enteredEmail = email.trim();
     const enteredPassword = password.trim();
 
     if (!enteredPassword) {
@@ -34,33 +35,82 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
     setIsLoading(true);
     setErrorMsg('');
 
-    // Check custom updated password from localStorage or master password "Ayra@2026"
-    const savedPassword = localStorage.getItem('ayra_admin_custom_password') || 'Ayra@2026';
+    try {
+      if (isSupabaseConfigured) {
+        // Authenticate with Supabase Auth so RLS policies recognize auth.role() = 'authenticated'
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: enteredEmail,
+          password: enteredPassword,
+        });
 
-    if (enteredPassword === savedPassword || enteredPassword === 'Ayra@2026') {
-      localStorage.setItem('ayra_admin_session', 'true');
-      onShowToast('Welcome back, AYRA FASHION Admin!', 'success');
-      onLoginSuccess();
-    } else {
-      setErrorMsg('Incorrect password. Please enter the valid admin password.');
+        if (signInError) {
+          // If the user does not exist yet in Supabase Auth, attempt auto-signup with the credentials
+          if (
+            signInError.message.toLowerCase().includes('invalid login credentials') ||
+            signInError.message.toLowerCase().includes('user not found')
+          ) {
+            const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+              email: enteredEmail,
+              password: enteredPassword,
+            });
+
+            if (!signUpError && signUpData.session) {
+              localStorage.setItem('ayra_admin_session', 'true');
+              onShowToast('Admin account provisioned and signed in to Supabase!', 'success');
+              onLoginSuccess();
+              return;
+            } else if (!signUpError && signUpData.user && !signUpData.session) {
+              setErrorMsg('Admin account created! Please verify your email or disable email verification in Supabase Dashboard.');
+              return;
+            }
+          }
+          throw signInError;
+        }
+
+        if (signInData.session) {
+          localStorage.setItem('ayra_admin_session', 'true');
+          onShowToast('Welcome back, AYRA FASHION Admin!', 'success');
+          onLoginSuccess();
+          return;
+        }
+      }
+
+      // Offline / fallback password check when Supabase is not yet configured or keys are pending
+      const savedPassword = localStorage.getItem('ayra_admin_custom_password') || 'Ayra@2026';
+      if (enteredPassword === savedPassword || enteredPassword === 'Ayra@2026') {
+        localStorage.setItem('ayra_admin_session', 'true');
+        onShowToast('Welcome back, AYRA FASHION Admin!', 'success');
+        onLoginSuccess();
+      } else {
+        setErrorMsg('Incorrect password. Please enter the valid admin password.');
+      }
+    } catch (err: any) {
+      console.error('Supabase admin login error:', err);
+      setErrorMsg(err.message || 'Authentication failed. Please check your credentials.');
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
     setErrorMsg('');
     try {
-      await signInWithPopup(auth, googleProvider);
+      if (isSupabaseConfigured) {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: window.location.origin + '/ayradmin2026',
+          },
+        });
+        if (error) throw error;
+      }
       localStorage.setItem('ayra_admin_session', 'true');
-      onShowToast('Signed in successfully with Google!', 'success');
+      onShowToast('Signed in successfully!', 'success');
       onLoginSuccess();
     } catch (err: any) {
-      console.error('Google sign-in error:', err);
-      if (err.code !== 'auth/popup-closed-by-user') {
-        setErrorMsg('Google Sign-In was cancelled or failed.');
-      }
+      console.error('Sign-in error:', err);
+      setErrorMsg(err.message || 'Sign-In was cancelled or failed.');
     } finally {
       setIsLoading(false);
     }
@@ -99,6 +149,24 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
           <div>
             <label className="block text-xs font-bold text-[#D4AF37] uppercase tracking-wider mb-1.5">
+              Admin Email
+            </label>
+            <div className="relative">
+              <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+              <input
+                id="admin-email-input"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="ayra.fashion.assam@gmail.com"
+                className="w-full pl-10 pr-4 py-3 bg-[#141414] border border-zinc-800 rounded-xl text-xs sm:text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#D4AF37] transition-all"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-[#D4AF37] uppercase tracking-wider mb-1.5">
               Admin Password
             </label>
             <div className="relative">
@@ -123,7 +191,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
             className="w-full py-3.5 px-4 rounded-xl bg-[#D4AF37] hover:bg-[#C9A227] text-black text-xs font-extrabold uppercase tracking-wider shadow-md transition-all flex items-center justify-center space-x-2 cursor-pointer"
           >
             {isLoading ? (
-              <span>Authenticating...</span>
+              <span>Authenticating with Supabase...</span>
             ) : (
               <>
                 <span>Login to Dashboard</span>

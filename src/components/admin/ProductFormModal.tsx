@@ -9,7 +9,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { Product, Category, AvailabilityStatus } from '../../types';
-import { uploadProductImage } from '../../firebase/services';
+import { uploadProductImage } from '../../supabase/services';
 
 interface ProductFormModalProps {
   isOpen: boolean;

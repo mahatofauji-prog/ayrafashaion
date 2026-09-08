@@ -124,3 +124,33 @@ export const INITIAL_PRODUCTS: Omit<Product, 'createdAt' | 'updatedAt'>[] = [
     availability: 'Out of Stock',
   },
 ];
+
+export const INITIAL_BANNERS = [
+  {
+    id: 'banner-ayra-seed-1',
+    businessId: 'ayra-fashion',
+    imageUrl: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1600&q=80',
+    isActive: true,
+    displayOrder: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'banner-ayra-seed-2',
+    businessId: 'ayra-fashion',
+    imageUrl: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1600&q=80',
+    isActive: true,
+    displayOrder: 1,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'banner-ayra-seed-3',
+    businessId: 'ayra-fashion',
+    imageUrl: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1600&q=80',
+    isActive: true,
+    displayOrder: 2,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
